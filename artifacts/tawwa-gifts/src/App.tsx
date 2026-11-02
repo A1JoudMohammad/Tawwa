@@ -22,8 +22,8 @@ const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
 const productImage = (id: string) => `${import.meta.env.BASE_URL}images/products/${id}.jpg`;
 
-function GiftMark({ className = '' }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 120 96" role="img" aria-label="Tawwa gift box mark" xmlns="http://www.w3.org/2000/svg"><g className="speed-lines" fill="none" stroke="#C25A30" strokeWidth="5" strokeLinecap="round"><path d="M6 50h20M2 64h24M10 78h16"/></g><g transform="rotate(-5 72 62)"><rect x="40" y="46" width="64" height="44" rx="8" fill="#1F6F6B"/><rect x="35" y="34" width="74" height="16" rx="6" fill="#D9B991"/><rect x="65" y="34" width="14" height="56" fill="#C25A30"/><path d="M72 34C60 14 42 22 52 32C57 36 66 35 72 34Z" fill="#C25A30"/><path d="M72 34C84 14 102 22 92 32C87 36 78 35 72 34Z" fill="#C25A30"/><rect x="66" y="29" width="12" height="9" rx="4" fill="#C25A30"/></g></svg>;
+function GiftMark({ className = '', decorative = false }: { className?: string; decorative?: boolean }) {
+  return <svg className={className} viewBox="0 0 120 96" role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : 'Tawwa gift box mark'} aria-hidden={decorative || undefined} xmlns="http://www.w3.org/2000/svg"><g className="speed-lines" fill="none" stroke="#C25A30" strokeWidth="5" strokeLinecap="round"><path d="M6 50h20M2 64h24M10 78h16"/></g><g transform="rotate(-5 72 62)"><rect x="40" y="46" width="64" height="44" rx="8" fill="#1F6F6B"/><rect x="35" y="34" width="74" height="16" rx="6" fill="#D9B991"/><rect x="65" y="34" width="14" height="56" fill="#C25A30"/><path d="M72 34C60 14 42 22 52 32C57 36 66 35 72 34Z" fill="#C25A30"/><path d="M72 34C84 14 102 22 92 32C87 36 78 35 72 34Z" fill="#C25A30"/><rect x="66" y="29" width="12" height="9" rx="4" fill="#C25A30"/></g></svg>;
 }
 function Wordmark() {
   return <span className="brand-name"><span>Tawwa</span><span>توّا</span></span>;
@@ -140,12 +140,39 @@ function Intro() {
 function Home() {
   const { lang } = useStore();
   const [testimonial, setTestimonial] = useState(0);
+  const [pastHero, setPastHero] = useState(false);
+  const [ctaInView, setCtaInView] = useState(false);
+  const [ctaRevealed, setCtaRevealed] = useState(false);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const ctaRef = useRef<HTMLElement | null>(null);
   const occasions = catalog.occasions.slice(0, 8);
   const iconFor = (icon: string) => icon === 'heart' ? <Heart /> : icon === 'sun' ? <Sun /> : icon === 'award' ? <Award /> : icon === 'moon' ? <Moon /> : icon === 'sparkles' ? <Sparkles /> : <Gift />;
+  useEffect(() => {
+    const hero = heroRef.current;
+    const cta = ctaRef.current;
+    if (!hero || !cta) return;
+    if (!('IntersectionObserver' in window)) {
+      setCtaRevealed(true);
+      return;
+    }
+    const heroObserver = new IntersectionObserver(([entry]) => {
+      setPastHero(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    }, { threshold: 0 });
+    const ctaObserver = new IntersectionObserver(([entry]) => {
+      setCtaInView(entry.isIntersecting);
+      if (entry.isIntersecting) setCtaRevealed(true);
+    }, { threshold: 0.15 });
+    heroObserver.observe(hero);
+    ctaObserver.observe(cta);
+    return () => {
+      heroObserver.disconnect();
+      ctaObserver.disconnect();
+    };
+  }, []);
   return <>
     <div className="announcement">{lang === 'ar' ? <>اطلب قبل <strong>٣ مساءً</strong> لتوصيل الليلة. تأخرت؟ نحن معك.</> : <>Order by <strong>3 PM</strong>, delivered tonight. Last-minute? We’ve got you.</>}</div>
     <main>
-      <section className="hero">
+      <section className="hero" ref={heroRef}>
         <div className="container hero-grid">
           <div><div className="eyebrow">{t(lang, 'KUWAIT GIFTING, RIGHT ON TIME', 'هدايا الكويت، في وقتها')}</div><h1>{lang === 'ar' ? <>عيد الميلاد الليلة؟<br /><em>خذ نفساً. توّا تتكفل.</em></> : <>Birthday tonight?<br /><em>Breathe. Tawwa’s on it.</em></>}</h1><p className="hero-copy">{t(lang, 'Thoughtful gift boxes, ready to go. Pick a moment, add your words, and we’ll get it there—fast.', 'صناديق هدايا جاهزة ومختارة بعناية. اختر المناسبة، أضف كلماتك، وسنوصلها بسرعة.')}</p><Link className="button" href="/gift-finder">{t(lang, 'Find the perfect box', 'اعثر على الهدية المناسبة')} <ArrowRight size={18} /></Link><div className="detail-benefit"><Check size={18} />{t(lang, 'Same-day delivery across Kuwait', 'توصيل في نفس اليوم إلى جميع أنحاء الكويت')}</div></div>
           <div className="hero-visual" aria-label="Tawwa gift box illustration"><div className="hero-note">{t(lang, 'Just in time.', 'في وقتها تماماً.')}</div><div className="gift-art"><div className="orbit" /><div className="box"><span className="lid" /><span className="ribbon" /><span className="bow" /></div></div><span className="hero-spark one">✳</span><span className="hero-spark two">✳</span></div>
@@ -160,6 +187,29 @@ function Home() {
       <section className="testimonials"><div className="container"><div className="eyebrow" style={{ textAlign: 'center' }}>{t(lang, 'KIND WORDS, RIGHT ON TIME', 'كلمات جميلة في وقتها')}</div><h2 style={{ textAlign: 'center', marginBottom: 36 }}>{t(lang, 'They had a moment. We had the box.', 'كان لديهم مناسبة، وكانت الهدية جاهزة.')}</h2><div className="quote">“{t(lang, catalog.testimonials[testimonial].quote, catalog.testimonials[testimonial].ar)}”<div className="quote-by">{catalog.testimonials[testimonial].name} · {catalog.testimonials[testimonial].place}</div></div><div className="dots" style={{ marginTop: 30 }}>{catalog.testimonials.map((item, i) => <button key={item.name} className={`dot ${testimonial === i ? 'active' : ''}`} aria-label={`Testimonial ${i + 1}`} aria-pressed={testimonial === i} onClick={() => setTestimonial(i)} />)}</div></div></section>
       <section className="section"><div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}><div><div className="eyebrow">{t(lang, 'A PROMISE, NOT A POSTER', 'وعدنا لك')}</div><h2>{t(lang, 'Your gift should feel just right.', 'نريد أن تكون هديتك كما تمنيتها.')}</h2><p className="muted">{t(lang, 'If something arrives damaged or not as expected, talk to us. We’ll make it right.', 'إذا وصل شيء تالفاً أو مختلفاً، تواصل معنا وسنعالج الأمر.')}</p></div><Link className="button secondary" href="/faq">{t(lang, 'Our satisfaction promise', 'وعدنا برضاك')} <ArrowRight size={18} /></Link></div></section>
     </main>
+    <section id="home-cta" ref={ctaRef} className={`home-cta ${ctaRevealed ? 'is-visible' : ''}`} aria-labelledby="home-cta-title">
+      <div className="container home-cta-inner">
+        <h2 id="home-cta-title">{t(lang, 'Order it Tawwa.', 'اطلبها توّا')}</h2>
+        <p>{t(lang, "Order by 3 PM and it's at the door tonight.", 'اطلب قبل الساعة ٣ مساءً، وتصلك الهدية الليلة.')}</p>
+        <div className="home-cta-actions">
+          <Link className="button home-cta-primary" href="/gift-finder">
+            <GiftMark className="home-cta-gift-mark" decorative />
+            <span>{t(lang, 'Find the perfect box', 'اعثر على صندوق الهدية المناسب')}</span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+          <a className="button home-cta-secondary" href="https://wa.me/?text=Hello%20Tawwa" target="_blank" rel="noreferrer" aria-label={t(lang, 'Chat on WhatsApp (opens in a new tab)', 'تواصل عبر واتساب (يفتح في نافذة جديدة)')}>
+            <MessageCircle size={19} aria-hidden="true" />
+            <span>{t(lang, 'Chat on WhatsApp', 'تواصل عبر واتساب')}</span>
+          </a>
+        </div>
+      </div>
+    </section>
+    {pastHero && !ctaInView && <div className="mobile-home-cta">
+      <Link className="button home-cta-primary" href="/gift-finder">
+        <GiftMark className="home-cta-gift-mark" decorative />
+        <span>{t(lang, 'Find the perfect box', 'اعثر على صندوق الهدية المناسب')}</span>
+      </Link>
+    </div>}
   </>;
 }
 function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) {
