@@ -20,6 +20,7 @@ const useStore = () => {
 const products = catalog.products as Product[];
 const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
+const productImage = (id: string) => `${import.meta.env.BASE_URL}images/products/${id}.jpg`;
 
 function GiftMark({ className = '' }: { className?: string }) {
   return <svg className={className} viewBox="0 0 120 96" role="img" aria-label="Tawwa gift box mark" xmlns="http://www.w3.org/2000/svg"><g className="speed-lines" fill="none" stroke="#C25A30" strokeWidth="5" strokeLinecap="round"><path d="M6 50h20M2 64h24M10 78h16"/></g><g transform="rotate(-5 72 62)"><rect x="40" y="46" width="64" height="44" rx="8" fill="#1F6F6B"/><rect x="35" y="34" width="74" height="16" rx="6" fill="#D9B991"/><rect x="65" y="34" width="14" height="56" fill="#C25A30"/><path d="M72 34C60 14 42 22 52 32C57 36 66 35 72 34Z" fill="#C25A30"/><path d="M72 34C84 14 102 22 92 32C87 36 78 35 72 34Z" fill="#C25A30"/><rect x="66" y="29" width="12" height="9" rx="4" fill="#C25A30"/></g></svg>;
@@ -29,7 +30,13 @@ function Wordmark() {
 }
 function MiniGift() { return <div className="mini-gift" aria-hidden="true"><span className="mini-ribbon" /></div>; }
 function ProductArt({ product, className = '' }: { product?: Product; className?: string }) {
-  return <div className={`product-card-image ${className}`} role="img" aria-label={product ? `${product.name} illustrated gift box` : 'Illustrated Tawwa gift box'}><MiniGift /></div>;
+  const { lang } = useStore();
+  const alt = product
+    ? t(lang, `${product.name} gift box with ${product.contents.slice(0, 2).join(' and ')}`, `${product.ar} مع ${product.contentsAr.slice(0, 2).join(' و')}`)
+    : t(lang, 'Illustrated Tawwa gift box', 'صندوق هدايا توّا');
+  return <div className={`product-card-image ${className}`}>
+    {product ? <img src={productImage(product.id)} alt={alt} loading="lazy" decoding="async" /> : <MiniGift />}
+  </div>;
 }
 function ProductCard({ product }: { product: Product }) {
   const { lang } = useStore();
@@ -47,25 +54,37 @@ function Carousel({ items }: { items: Product[] }) {
   const { lang } = useStore();
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const scrollByCard = (direction: number) => {
+  const getStepSize = () => {
+    const el = ref.current;
+    const slide = el?.querySelector<HTMLElement>('.carousel-slide');
+    return (slide?.offsetWidth || 300) + 20;
+  };
+  const scrollBySlide = (direction: number) => {
     const el = ref.current;
     if (!el) return;
-    const card = el.querySelector<HTMLElement>('.product-card');
-    el.scrollBy({ left: direction * ((card?.offsetWidth || 300) + 20) * (lang === 'ar' ? -1 : 1), behavior: 'smooth' });
+    el.scrollBy({ left: direction * getStepSize() * (lang === 'ar' ? -1 : 1), behavior: 'smooth' });
+  };
+  const goToSlide = (index: number) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ left: getStepSize() * index * (lang === 'ar' ? -1 : 1), behavior: 'smooth' });
   };
   const onScroll = () => {
     const el = ref.current;
     if (!el) return;
-    const card = el.querySelector<HTMLElement>('.product-card');
-    if (card) setActive(Math.round(Math.abs(el.scrollLeft) / (card.offsetWidth + 20)));
+    const slide = el.querySelector<HTMLElement>('.carousel-slide');
+    if (slide) {
+      const index = Math.round(Math.abs(el.scrollLeft) / (slide.offsetWidth + 20));
+      setActive(Math.max(0, Math.min(index, items.length - 1)));
+    }
   };
-  return <div className="carousel-wrap">
-    <div className="carousel" ref={ref} onScroll={onScroll} tabIndex={0} aria-label="Featured gift boxes. Scroll horizontally to explore." onKeyDown={e => { if (e.key === 'ArrowRight') scrollByCard(lang === 'ar' ? -1 : 1); if (e.key === 'ArrowLeft') scrollByCard(lang === 'ar' ? 1 : -1); }}>
-      {items.map(item => <ProductCard key={item.id} product={item} />)}
+  return <div className="carousel-wrap" role="region" aria-roledescription="carousel" aria-label={t(lang, 'Featured gift boxes', 'صناديق الهدايا المميزة')}>
+    <div className="carousel" ref={ref} onScroll={onScroll} tabIndex={0} aria-label={t(lang, 'Gift slides', 'شرائح الهدايا')} onKeyDown={e => { if (e.key === 'ArrowRight') scrollBySlide(lang === 'ar' ? -1 : 1); if (e.key === 'ArrowLeft') scrollBySlide(lang === 'ar' ? 1 : -1); }}>
+      {items.map((item, index) => <div className="carousel-slide" key={item.id} role="group" aria-roledescription="slide" aria-label={t(lang, `${index + 1} of ${items.length}: ${item.name}`, `${index + 1} من ${items.length}: ${item.ar}`)}><ProductCard product={item} /></div>)}
     </div>
     <div className="section-head" style={{ margin: '8px 0 0', alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: 10 }}><button className="carousel-control" onClick={() => scrollByCard(-1)} aria-label="Previous gifts"><ChevronLeft /></button><button className="carousel-control" onClick={() => scrollByCard(1)} aria-label="Next gifts"><ChevronRight /></button></div>
-      <div className="dots" aria-label="Carousel pages">{items.map((item, i) => <button key={item.id} className={`dot ${i === active ? 'active' : ''}`} aria-label={`Go to gift ${i + 1}`} onClick={() => { const el = ref.current; const card = el?.querySelector<HTMLElement>('.product-card'); el?.scrollTo({ left: (card ? card.offsetWidth + 20 : 320) * i * (lang === 'ar' ? -1 : 1), behavior: 'smooth' }); }} />)}</div>
+      <div className="carousel-controls" role="group" aria-label={t(lang, 'Carousel controls', 'أزرار التنقل')}><button className="carousel-control" onClick={() => scrollBySlide(-1)} disabled={active === 0} aria-label={t(lang, 'Previous slide', 'الشريحة السابقة')}><ChevronLeft /></button><button className="carousel-control" onClick={() => scrollBySlide(1)} disabled={active >= items.length - 1} aria-label={t(lang, 'Next slide', 'الشريحة التالية')}><ChevronRight /></button></div>
+      <div className="dots" role="group" aria-label={t(lang, 'Choose a slide', 'اختر شريحة')}>{items.map((item, i) => <button key={item.id} className={`dot ${i === active ? 'active' : ''}`} aria-label={t(lang, `Go to slide ${i + 1}: ${item.name}`, `انتقل إلى الشريحة ${i + 1}: ${item.ar}`)} aria-current={i === active ? 'true' : undefined} onClick={() => goToSlide(i)} />)}</div>
     </div>
   </div>;
 }
@@ -170,11 +189,10 @@ function ProductPage() {
   const product = products.find(p => p.id === params?.id);
   const [message, setMessage] = useState('');
   const [date, setDate] = useState('');
-  const [selected, setSelected] = useState(0);
   if (!product) return <NotFound />;
   const add = () => { addItem(product.id, message, date); toast(t(lang, `${product.name} is in your cart.`, `${product.ar} أضيفت إلى سلتك.`)); };
   return <><main className="section"><div className="container product-layout">
-    <div className="product-gallery"><div className="gallery-main" aria-label={`${product.name} product illustration`} style={{ background: selected === 1 ? '#d9e6df' : selected === 2 ? '#f0dfd4' : '#eee4d6' }}><MiniGift /></div><div className="gallery-thumbs">{[0,1,2].map(i => <button className={`gallery-thumb ${selected === i ? 'selected' : ''}`} onClick={() => setSelected(i)} aria-label={`Show product view ${i + 1}`} key={i}><MiniGift /></button>)}</div></div>
+     <div className="product-gallery"><div className="gallery-main"><img className="product-gallery-image" src={productImage(product.id)} alt={t(lang, `${product.name} gift box with ${product.contents.join(', ')}`, `${product.ar} مع ${product.contentsAr.join('، ')}`)} loading="eager" /></div></div>
     <div className="product-detail"><div className="eyebrow">{t(lang, catalog.occasions.find(o => o.id === product.occasion)?.name || 'GIFT BOX', catalog.occasions.find(o => o.id === product.occasion)?.ar || 'هدية')}</div><h1>{t(lang, product.name, product.ar)}</h1><div className="price">{fmt(product.price)}</div><p className="muted" style={{ marginTop: 18 }}>{t(lang, product.description, product.descriptionAr)}</p><div className="detail-benefit"><Check size={18} />{t(lang, product.idealFor, product.idealForAr)}</div><div className="detail-benefit"><Check size={18} />{t(lang, product.delivery, product.deliveryAr)}</div>
       <div className="contents"><h3>{t(lang, 'Inside the box', 'محتويات الصندوق')}</h3><ul>{(lang === 'ar' ? product.contentsAr : product.contents).map(item => <li key={item}>{item}</li>)}</ul></div>
       <div className="product-options"><div className="field"><label htmlFor="gift-message">{t(lang, 'Your card message', 'رسالة البطاقة')} <span className="muted">({t(lang, 'optional', 'اختياري')})</span></label><textarea id="gift-message" maxLength={180} value={message} onChange={e => setMessage(e.target.value)} placeholder={t(lang, 'A few words from you…', 'اكتب كلماتك هنا...')} /><span className="muted">{message.length}/180</span></div><div className="field"><label htmlFor="delivery-date">{t(lang, 'Delivery date', 'تاريخ التوصيل')}</label><input id="delivery-date" type="date" min={new Date().toISOString().slice(0,10)} value={date} onChange={e => setDate(e.target.value)} /></div><button className="button" onClick={add}>{t(lang, 'Add to cart', 'أضف إلى السلة')} <Gift size={18} /></button><div className="detail-benefit"><Check size={18} />{t(lang, 'Your order is confirmed before any payment. Demo checkout only.', 'تأكيد الطلب قبل الدفع. تجربة توضيحية فقط.')}</div></div>

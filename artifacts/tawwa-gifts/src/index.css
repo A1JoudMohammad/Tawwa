@@ -125,10 +125,15 @@ h3 { font-size:22px; margin-bottom:10px; }
 .carousel-wrap { position:relative; }
 .carousel { display:flex; gap:20px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; padding:6px 2px 18px; scroll-behavior:smooth; }
 .carousel::-webkit-scrollbar { display:none; }
-.product-card { flex:0 0 calc(33.333% - 14px); scroll-snap-align:start; border:1px solid rgba(31,42,42,.13); border-radius:16px; background:#fffdf9; overflow:hidden; transition:transform .2s, box-shadow .2s; }
+.carousel-slide { flex:0 0 calc(33.333% - 14px); scroll-snap-align:start; }
+.carousel-slide .product-card { height:100%; }
+.product-card { border:1px solid rgba(31,42,42,.13); border-radius:16px; background:#fffdf9; overflow:hidden; transition:transform .2s, box-shadow .2s; }
 .product-card:hover { transform:translateY(-4px); box-shadow:0 14px 30px rgba(31,42,42,.09); }
 .product-card-image { height:240px; background:#eee4d6; display:grid; place-items:center; position:relative; overflow:hidden; }
+.product-card-image img { width:100%; height:100%; object-fit:cover; transition:transform .35s ease; }
+.product-card:hover .product-card-image img { transform:scale(1.035); }
 .product-card:nth-child(3n+2) .product-card-image { background:#d9e6df; }.product-card:nth-child(3n) .product-card-image { background:#f0dfd4; }
+.carousel-slide:nth-child(3n+2) .product-card-image { background:#d9e6df; }.carousel-slide:nth-child(3n) .product-card-image { background:#f0dfd4; }
 .mini-gift { width:130px; height:110px; position:relative; transform:rotate(-4deg); transition:transform .3s; }
 .product-card:hover .mini-gift { transform:rotate(0) translateY(-4px); }
 .mini-gift:before { content:''; position:absolute; inset:29px 8px 0; background:var(--teal); border-radius:9px 9px 17px 17px; }
@@ -138,8 +143,10 @@ h3 { font-size:22px; margin-bottom:10px; }
 .product-info h3 { font-size:19px; margin-bottom:8px; }
 .product-meta { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:16px; font-weight:600; }
 .price { color:var(--teal); font-variant-numeric:tabular-nums; }
+.carousel-controls { display:flex; gap:10px; flex:none; }
 .carousel-control { width:44px; height:44px; border:1px solid var(--teal); background:var(--cream); border-radius:50%; display:inline-grid; place-items:center; cursor:pointer; }
 .carousel-control:hover { background:var(--teal); color:var(--cream); }
+.carousel-control:disabled { opacity:.45; cursor:not-allowed; }
 .dots { display:flex; justify-content:center; gap:0; margin-top:10px; }
 .dot { flex:0 0 44px; width:44px; height:44px; border-radius:50%; border:0; background:transparent; cursor:pointer; display:grid; place-items:center; }
 .dot::before { content:''; width:9px; height:9px; border-radius:50%; background:var(--camel); transition:transform .2s, background .2s; }
@@ -178,6 +185,7 @@ h3 { font-size:22px; margin-bottom:10px; }
 .product-gallery { position:sticky; top:116px; }
 .gallery-main { height:490px; border-radius:20px; background:#eee4d6; display:grid; place-items:center; }
 .gallery-main .mini-gift { transform:scale(1.7) rotate(-4deg); }
+.product-gallery-image { width:100%; height:100%; object-fit:cover; border-radius:inherit; }
 .gallery-thumbs { display:flex; gap:12px; margin-top:14px; }
 .gallery-thumb { width:72px; height:64px; background:#d9e6df; border:2px solid transparent; border-radius:12px; display:grid; place-items:center; cursor:pointer; }
 .gallery-thumb.selected { border-color:var(--teal); }
@@ -227,7 +235,7 @@ h3 { font-size:22px; margin-bottom:10px; }
 @media (max-width:900px) {
  .nav-links { gap:16px; font-size:14px; }
  .occasion-grid { grid-template-columns:repeat(2,1fr); }
- .product-card { flex-basis:calc(50% - 10px); }
+ .carousel-slide { flex-basis:calc(50% - 10px); }
  .footer-grid { grid-template-columns:1.4fr 1fr 1fr; }
  .footer-grid > div:last-child { grid-column:2 / 4; }
  .shop-layout { grid-template-columns:220px 1fr; gap:20px; }
@@ -257,7 +265,7 @@ h3 { font-size:22px; margin-bottom:10px; }
  .occasion-tile h3 { font-size:17px; }
  .fast-strip { align-items:flex-start; flex-direction:column; padding:24px; }
  .fast-strip h2 { font-size:27px; }
- .product-card { flex-basis:84%; }
+ .carousel-slide { flex-basis:84%; }
  .product-card-image { height:210px; }
  .steps { grid-template-columns:1fr; gap:24px; }
  .step { padding-top:18px; }
