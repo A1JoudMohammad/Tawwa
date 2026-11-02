@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Tawwa Gift Boxes"
+description = "A bilingual English and Arabic gift-box shopping experience for Kuwait. Browse by occasion, find a gift, personalize it, and review a mock cart with local demo data."
+version = "1.0.0"
+id = "artifacts/tawwa-gifts"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25037
+
+[services.development]
+run = "pnpm --filter @workspace/tawwa-gifts run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tawwa-gifts", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/tawwa-gifts/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25037"
+BASE_PATH = "/"
