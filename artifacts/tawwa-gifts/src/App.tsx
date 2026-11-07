@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import AdminPage from '@/pages/admin';
 import { Route, Switch, useLocation, useRoute, Router as WouterRouter, Link } from 'wouter';
 import { ArrowRight, ArrowUpRight, Award, Check, ChevronLeft, ChevronRight, Gift, Heart, Menu, MessageCircle, Minus, Moon, Plus, Sparkles, Sun, X } from 'lucide-react';
 import { testimonials, faqs } from './data/catalog.json';
@@ -74,11 +75,12 @@ function GiftDetails({ message, date, productId }: { message?: string; date?: st
 }
 function ProductArt({ product, className = '' }: { product?: Product; className?: string }) {
   const { lang } = useStore();
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const alt = product
     ? t(lang, `${product.name} gift box with ${product.contents.slice(0, 2).join(' and ')}`, `${product.ar} مع ${product.contentsAr.slice(0, 2).join(' و')}`)
     : t(lang, 'Illustrated Tawwa gift box', 'صندوق هدايا توّا');
   return <div className={`product-card-image ${className}`}>
-    {product ? <img src={productImage(product.id)} alt={alt} loading="lazy" decoding="async" /> : <MiniGift />}
+    {product && failedSrc !== product.id ? <img src={productImage(product.id)} alt={alt} loading="lazy" decoding="async" onError={() => setFailedSrc(product.id)} /> : <MiniGift />}
   </div>;
 }
 function ProductCard({ product }: { product: Product }) {
@@ -163,7 +165,7 @@ function Footer() {
       <div className="footer-grid">
         <div><Link href="/" className="brand"><GiftMark className="brand-mark" /><Wordmark /></Link><p style={{ maxWidth: 300, marginTop: 20 }}>{t(lang, "Tawwa. Gift’s on its way.", 'توّا وتوصلك الهدية.')}</p><button className="button outline small" style={{ color: 'var(--cream)', borderColor: 'var(--cream)' }} onClick={replay}>{t(lang, 'Replay intro', 'إعادة المقدمة')}</button></div>
         <div><h3>{t(lang, 'EXPLORE', 'اكتشف')}</h3><div className="footer-links"><Link href="/occasions">{t(lang, 'Shop occasions', 'تسوق حسب المناسبة')}</Link><Link href="/gift-finder">{t(lang, 'Gift Finder', 'مساعد الهدايا')}</Link><a href="/#how-it-works">{t(lang, 'How it works', 'كيف نعمل')}</a></div></div>
-        <div><h3>{t(lang, 'HERE TO HELP', 'نحن هنا للمساعدة')}</h3><div className="footer-links"><Link href="/faq">{t(lang, 'Delivery & FAQ', 'التوصيل والأسئلة')}</Link><Link href="/contact">{t(lang, 'Contact us', 'تواصل معنا')}</Link><a href="https://wa.me/?text=Hello%20Tawwa" target="_blank" rel="noreferrer">WhatsApp</a></div></div>
+        <div><h3>{t(lang, 'HERE TO HELP', 'نحن هنا للمساعدة')}</h3><div className="footer-links"><Link href="/faq">{t(lang, 'Delivery & FAQ', 'التوصيل والأسئلة')}</Link><Link href="/contact">{t(lang, 'Contact us', 'تواصل معنا')}</Link><a href="https://wa.me/?text=Hello%20Tawwa" target="_blank" rel="noreferrer">WhatsApp</a><Link href="/admin" data-testid="link-staff-access">{t(lang, 'Staff access', 'دخول الموظفين')}</Link></div></div>
         <div><h3>{t(lang, 'DELIVERING ACROSS', 'نوصل إلى')}</h3><div className="footer-links"><span>{t(lang, 'All six Kuwait governorates', 'محافظات الكويت الست')}</span><span>{t(lang, 'Order by 3 PM for tonight', 'اطلب قبل ٣ مساءً للتوصيل الليلة')}</span></div></div>
       </div>
       <div className="footer-bottom"><span>© 2025 Tawwa. Made for the moments that matter.</span><span>{t(lang, 'Demo shop · No payment is collected', 'متجر تجريبي · لا يتم تحصيل أي مدفوعات')}</span></div>
@@ -426,7 +428,7 @@ function ProductPage() {
     });
   };
   return <><main className="section"><div className="container product-layout">
-     <div className="product-gallery"><div className="gallery-main"><img className="product-gallery-image" src={productImage(product.id)} alt={t(lang, `${product.name} gift box with ${product.contents.join(', ')}`, `${product.ar} مع ${product.contentsAr.join('، ')}`)} loading="eager" /></div></div>
+     <div className="product-gallery"><div className="gallery-main"><img className="product-gallery-image" src={productImage(product.id)} alt={t(lang, `${product.name} gift box with ${product.contents.join(', ')}`, `${product.ar} مع ${product.contentsAr.join('، ')}`)} loading="eager" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} /></div></div>
     <div className="product-detail"><div className="eyebrow">{t(lang, catalog.occasions.find(o => o.id === product.occasion)?.name || 'GIFT BOX', catalog.occasions.find(o => o.id === product.occasion)?.ar || 'هدية')}</div><h1>{t(lang, product.name, product.ar)}</h1><div className="price">{fmt(product.price)}</div><p className="muted" style={{ marginTop: 18 }}>{t(lang, product.description, product.descriptionAr)}</p><div className="detail-benefit"><Check size={18} />{t(lang, product.idealFor, product.idealForAr)}</div><div className="detail-benefit"><Check size={18} />{t(lang, product.delivery, product.deliveryAr)}</div>
       <div className="contents"><h3>{t(lang, 'Inside the box', 'محتويات الصندوق')}</h3><ul>{(lang === 'ar' ? product.contentsAr : product.contents).map(item => <li key={item}>{item}</li>)}</ul></div>
        <div className="product-options">
@@ -587,6 +589,6 @@ function InnerApp() {
 }
 const queryClient = new QueryClient();
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><InnerApp /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Switch><Route path="/admin" component={AdminPage} /><Route><InnerApp /></Route></Switch></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }
 export default App;

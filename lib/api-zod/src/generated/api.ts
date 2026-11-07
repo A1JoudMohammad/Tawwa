@@ -8,6 +8,455 @@
 import * as zod from 'zod';
 
 
+export const GetAdminSessionResponse = zod.object({
+  "authenticated": zod.boolean(),
+  "configured": zod.boolean()
+})
+
+
+export const loginAdminBodyEmailMax = 254;
+
+export const loginAdminBodyPasswordMax = 256;
+
+
+
+export const LoginAdminBody = zod.object({
+  "email": zod.string().email().max(loginAdminBodyEmailMax),
+  "password": zod.string().min(1).max(loginAdminBodyPasswordMax)
+})
+
+export const LoginAdminResponse = zod.object({
+  "authenticated": zod.boolean(),
+  "configured": zod.boolean()
+})
+
+
+export const LogoutAdminResponse = zod.void()
+
+
+export const getAdminCatalogResponseProductsItemIdMax = 80;
+
+
+export const getAdminCatalogResponseProductsItemIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const getAdminCatalogResponseProductsItemOccasionIdMax = 80;
+
+export const getAdminCatalogResponseProductsItemAgeGroupMax = 80;
+
+export const getAdminCatalogResponseProductsItemNameEnMax = 200;
+
+export const getAdminCatalogResponseProductsItemNameArMax = 200;
+
+export const getAdminCatalogResponseProductsItemDescriptionEnMax = 4000;
+
+export const getAdminCatalogResponseProductsItemDescriptionArMax = 4000;
+
+export const getAdminCatalogResponseProductsItemContentsEnItemMax = 500;
+
+export const getAdminCatalogResponseProductsItemContentsEnMax = 50;
+
+export const getAdminCatalogResponseProductsItemContentsArItemMax = 500;
+
+export const getAdminCatalogResponseProductsItemContentsArMax = 50;
+
+export const getAdminCatalogResponseProductsItemPriceExclusiveMin = 0;
+export const getAdminCatalogResponseProductsItemPriceMax = 1000000;
+
+export const getAdminCatalogResponseProductsItemIdealForEnMax = 1000;
+
+export const getAdminCatalogResponseProductsItemIdealForArMax = 1000;
+
+export const getAdminCatalogResponseProductsItemDeliveryEnMax = 1000;
+
+export const getAdminCatalogResponseProductsItemDeliveryArMax = 1000;
+
+export const getAdminCatalogResponseProductsItemDisplayOrderMin = 0;
+export const getAdminCatalogResponseProductsItemDisplayOrderMax = 100000;
+
+export const getAdminCatalogResponseOccasionsItemIdMax = 80;
+
+
+export const getAdminCatalogResponseOccasionsItemIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const getAdminCatalogResponseOccasionsItemNameEnMax = 200;
+
+export const getAdminCatalogResponseOccasionsItemNameArMax = 200;
+
+export const getAdminCatalogResponseOccasionsItemDisplayOrderMin = 0;
+export const getAdminCatalogResponseOccasionsItemDisplayOrderMax = 100000;
+
+
+
+export const GetAdminCatalogResponse = zod.object({
+  "products": zod.array(zod.object({
+  "id": zod.string().min(1).max(getAdminCatalogResponseProductsItemIdMax).regex(getAdminCatalogResponseProductsItemIdRegExp),
+  "occasion_id": zod.string().min(1).max(getAdminCatalogResponseProductsItemOccasionIdMax),
+  "age_group": zod.string().max(getAdminCatalogResponseProductsItemAgeGroupMax).nullable(),
+  "name_en": zod.string().min(1).max(getAdminCatalogResponseProductsItemNameEnMax),
+  "name_ar": zod.string().min(1).max(getAdminCatalogResponseProductsItemNameArMax),
+  "description_en": zod.string().min(1).max(getAdminCatalogResponseProductsItemDescriptionEnMax),
+  "description_ar": zod.string().min(1).max(getAdminCatalogResponseProductsItemDescriptionArMax),
+  "contents_en": zod.array(zod.string().min(1).max(getAdminCatalogResponseProductsItemContentsEnItemMax)).min(1).max(getAdminCatalogResponseProductsItemContentsEnMax),
+  "contents_ar": zod.array(zod.string().min(1).max(getAdminCatalogResponseProductsItemContentsArItemMax)).min(1).max(getAdminCatalogResponseProductsItemContentsArMax),
+  "price": zod.number().gt(getAdminCatalogResponseProductsItemPriceExclusiveMin).max(getAdminCatalogResponseProductsItemPriceMax),
+  "ideal_for_en": zod.string().min(1).max(getAdminCatalogResponseProductsItemIdealForEnMax),
+  "ideal_for_ar": zod.string().min(1).max(getAdminCatalogResponseProductsItemIdealForArMax),
+  "delivery_en": zod.string().min(1).max(getAdminCatalogResponseProductsItemDeliveryEnMax),
+  "delivery_ar": zod.string().min(1).max(getAdminCatalogResponseProductsItemDeliveryArMax),
+  "is_available": zod.boolean(),
+  "display_order": zod.number().int().min(getAdminCatalogResponseProductsItemDisplayOrderMin).max(getAdminCatalogResponseProductsItemDisplayOrderMax)
+})),
+  "occasions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getAdminCatalogResponseOccasionsItemIdMax).regex(getAdminCatalogResponseOccasionsItemIdRegExp),
+  "name_en": zod.string().min(1).max(getAdminCatalogResponseOccasionsItemNameEnMax),
+  "name_ar": zod.string().min(1).max(getAdminCatalogResponseOccasionsItemNameArMax),
+  "icon": zod.enum(['gift', 'heart', 'sparkles', 'sun', 'award', 'rings', 'moon']),
+  "is_active": zod.boolean(),
+  "display_order": zod.number().int().min(getAdminCatalogResponseOccasionsItemDisplayOrderMin).max(getAdminCatalogResponseOccasionsItemDisplayOrderMax)
+}))
+})
+
+
+export const createAdminProductBodyIdMax = 80;
+
+
+export const createAdminProductBodyIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const createAdminProductBodyOccasionIdMax = 80;
+
+export const createAdminProductBodyAgeGroupMax = 80;
+
+export const createAdminProductBodyNameEnMax = 200;
+
+export const createAdminProductBodyNameArMax = 200;
+
+export const createAdminProductBodyDescriptionEnMax = 4000;
+
+export const createAdminProductBodyDescriptionArMax = 4000;
+
+export const createAdminProductBodyContentsEnItemMax = 500;
+
+export const createAdminProductBodyContentsEnMax = 50;
+
+export const createAdminProductBodyContentsArItemMax = 500;
+
+export const createAdminProductBodyContentsArMax = 50;
+
+export const createAdminProductBodyPriceExclusiveMin = 0;
+export const createAdminProductBodyPriceMax = 1000000;
+
+export const createAdminProductBodyIdealForEnMax = 1000;
+
+export const createAdminProductBodyIdealForArMax = 1000;
+
+export const createAdminProductBodyDeliveryEnMax = 1000;
+
+export const createAdminProductBodyDeliveryArMax = 1000;
+
+export const createAdminProductBodyDisplayOrderMin = 0;
+export const createAdminProductBodyDisplayOrderMax = 100000;
+
+
+
+export const CreateAdminProductBody = zod.object({
+  "id": zod.string().min(1).max(createAdminProductBodyIdMax).regex(createAdminProductBodyIdRegExp),
+  "occasion_id": zod.string().min(1).max(createAdminProductBodyOccasionIdMax),
+  "age_group": zod.string().max(createAdminProductBodyAgeGroupMax).nullable(),
+  "name_en": zod.string().min(1).max(createAdminProductBodyNameEnMax),
+  "name_ar": zod.string().min(1).max(createAdminProductBodyNameArMax),
+  "description_en": zod.string().min(1).max(createAdminProductBodyDescriptionEnMax),
+  "description_ar": zod.string().min(1).max(createAdminProductBodyDescriptionArMax),
+  "contents_en": zod.array(zod.string().min(1).max(createAdminProductBodyContentsEnItemMax)).min(1).max(createAdminProductBodyContentsEnMax),
+  "contents_ar": zod.array(zod.string().min(1).max(createAdminProductBodyContentsArItemMax)).min(1).max(createAdminProductBodyContentsArMax),
+  "price": zod.number().gt(createAdminProductBodyPriceExclusiveMin).max(createAdminProductBodyPriceMax),
+  "ideal_for_en": zod.string().min(1).max(createAdminProductBodyIdealForEnMax),
+  "ideal_for_ar": zod.string().min(1).max(createAdminProductBodyIdealForArMax),
+  "delivery_en": zod.string().min(1).max(createAdminProductBodyDeliveryEnMax),
+  "delivery_ar": zod.string().min(1).max(createAdminProductBodyDeliveryArMax),
+  "is_available": zod.boolean(),
+  "display_order": zod.number().int().min(createAdminProductBodyDisplayOrderMin).max(createAdminProductBodyDisplayOrderMax)
+})
+
+export const createAdminProductResponseIdMax = 80;
+
+
+export const createAdminProductResponseIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const createAdminProductResponseOccasionIdMax = 80;
+
+export const createAdminProductResponseAgeGroupMax = 80;
+
+export const createAdminProductResponseNameEnMax = 200;
+
+export const createAdminProductResponseNameArMax = 200;
+
+export const createAdminProductResponseDescriptionEnMax = 4000;
+
+export const createAdminProductResponseDescriptionArMax = 4000;
+
+export const createAdminProductResponseContentsEnItemMax = 500;
+
+export const createAdminProductResponseContentsEnMax = 50;
+
+export const createAdminProductResponseContentsArItemMax = 500;
+
+export const createAdminProductResponseContentsArMax = 50;
+
+export const createAdminProductResponsePriceExclusiveMin = 0;
+export const createAdminProductResponsePriceMax = 1000000;
+
+export const createAdminProductResponseIdealForEnMax = 1000;
+
+export const createAdminProductResponseIdealForArMax = 1000;
+
+export const createAdminProductResponseDeliveryEnMax = 1000;
+
+export const createAdminProductResponseDeliveryArMax = 1000;
+
+export const createAdminProductResponseDisplayOrderMin = 0;
+export const createAdminProductResponseDisplayOrderMax = 100000;
+
+
+
+export const CreateAdminProductResponse = zod.object({
+  "id": zod.string().min(1).max(createAdminProductResponseIdMax).regex(createAdminProductResponseIdRegExp),
+  "occasion_id": zod.string().min(1).max(createAdminProductResponseOccasionIdMax),
+  "age_group": zod.string().max(createAdminProductResponseAgeGroupMax).nullable(),
+  "name_en": zod.string().min(1).max(createAdminProductResponseNameEnMax),
+  "name_ar": zod.string().min(1).max(createAdminProductResponseNameArMax),
+  "description_en": zod.string().min(1).max(createAdminProductResponseDescriptionEnMax),
+  "description_ar": zod.string().min(1).max(createAdminProductResponseDescriptionArMax),
+  "contents_en": zod.array(zod.string().min(1).max(createAdminProductResponseContentsEnItemMax)).min(1).max(createAdminProductResponseContentsEnMax),
+  "contents_ar": zod.array(zod.string().min(1).max(createAdminProductResponseContentsArItemMax)).min(1).max(createAdminProductResponseContentsArMax),
+  "price": zod.number().gt(createAdminProductResponsePriceExclusiveMin).max(createAdminProductResponsePriceMax),
+  "ideal_for_en": zod.string().min(1).max(createAdminProductResponseIdealForEnMax),
+  "ideal_for_ar": zod.string().min(1).max(createAdminProductResponseIdealForArMax),
+  "delivery_en": zod.string().min(1).max(createAdminProductResponseDeliveryEnMax),
+  "delivery_ar": zod.string().min(1).max(createAdminProductResponseDeliveryArMax),
+  "is_available": zod.boolean(),
+  "display_order": zod.number().int().min(createAdminProductResponseDisplayOrderMin).max(createAdminProductResponseDisplayOrderMax)
+})
+
+
+export const updateAdminProductPathIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+
+
+export const UpdateAdminProductParams = zod.object({
+  "id": zod.coerce.string().regex(updateAdminProductPathIdRegExp)
+})
+
+export const updateAdminProductBodyIdMax = 80;
+
+
+export const updateAdminProductBodyIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const updateAdminProductBodyOccasionIdMax = 80;
+
+export const updateAdminProductBodyAgeGroupMax = 80;
+
+export const updateAdminProductBodyNameEnMax = 200;
+
+export const updateAdminProductBodyNameArMax = 200;
+
+export const updateAdminProductBodyDescriptionEnMax = 4000;
+
+export const updateAdminProductBodyDescriptionArMax = 4000;
+
+export const updateAdminProductBodyContentsEnItemMax = 500;
+
+export const updateAdminProductBodyContentsEnMax = 50;
+
+export const updateAdminProductBodyContentsArItemMax = 500;
+
+export const updateAdminProductBodyContentsArMax = 50;
+
+export const updateAdminProductBodyPriceExclusiveMin = 0;
+export const updateAdminProductBodyPriceMax = 1000000;
+
+export const updateAdminProductBodyIdealForEnMax = 1000;
+
+export const updateAdminProductBodyIdealForArMax = 1000;
+
+export const updateAdminProductBodyDeliveryEnMax = 1000;
+
+export const updateAdminProductBodyDeliveryArMax = 1000;
+
+export const updateAdminProductBodyDisplayOrderMin = 0;
+export const updateAdminProductBodyDisplayOrderMax = 100000;
+
+
+
+export const UpdateAdminProductBody = zod.object({
+  "id": zod.string().min(1).max(updateAdminProductBodyIdMax).regex(updateAdminProductBodyIdRegExp),
+  "occasion_id": zod.string().min(1).max(updateAdminProductBodyOccasionIdMax),
+  "age_group": zod.string().max(updateAdminProductBodyAgeGroupMax).nullable(),
+  "name_en": zod.string().min(1).max(updateAdminProductBodyNameEnMax),
+  "name_ar": zod.string().min(1).max(updateAdminProductBodyNameArMax),
+  "description_en": zod.string().min(1).max(updateAdminProductBodyDescriptionEnMax),
+  "description_ar": zod.string().min(1).max(updateAdminProductBodyDescriptionArMax),
+  "contents_en": zod.array(zod.string().min(1).max(updateAdminProductBodyContentsEnItemMax)).min(1).max(updateAdminProductBodyContentsEnMax),
+  "contents_ar": zod.array(zod.string().min(1).max(updateAdminProductBodyContentsArItemMax)).min(1).max(updateAdminProductBodyContentsArMax),
+  "price": zod.number().gt(updateAdminProductBodyPriceExclusiveMin).max(updateAdminProductBodyPriceMax),
+  "ideal_for_en": zod.string().min(1).max(updateAdminProductBodyIdealForEnMax),
+  "ideal_for_ar": zod.string().min(1).max(updateAdminProductBodyIdealForArMax),
+  "delivery_en": zod.string().min(1).max(updateAdminProductBodyDeliveryEnMax),
+  "delivery_ar": zod.string().min(1).max(updateAdminProductBodyDeliveryArMax),
+  "is_available": zod.boolean(),
+  "display_order": zod.number().int().min(updateAdminProductBodyDisplayOrderMin).max(updateAdminProductBodyDisplayOrderMax)
+})
+
+export const updateAdminProductResponseIdMax = 80;
+
+
+export const updateAdminProductResponseIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const updateAdminProductResponseOccasionIdMax = 80;
+
+export const updateAdminProductResponseAgeGroupMax = 80;
+
+export const updateAdminProductResponseNameEnMax = 200;
+
+export const updateAdminProductResponseNameArMax = 200;
+
+export const updateAdminProductResponseDescriptionEnMax = 4000;
+
+export const updateAdminProductResponseDescriptionArMax = 4000;
+
+export const updateAdminProductResponseContentsEnItemMax = 500;
+
+export const updateAdminProductResponseContentsEnMax = 50;
+
+export const updateAdminProductResponseContentsArItemMax = 500;
+
+export const updateAdminProductResponseContentsArMax = 50;
+
+export const updateAdminProductResponsePriceExclusiveMin = 0;
+export const updateAdminProductResponsePriceMax = 1000000;
+
+export const updateAdminProductResponseIdealForEnMax = 1000;
+
+export const updateAdminProductResponseIdealForArMax = 1000;
+
+export const updateAdminProductResponseDeliveryEnMax = 1000;
+
+export const updateAdminProductResponseDeliveryArMax = 1000;
+
+export const updateAdminProductResponseDisplayOrderMin = 0;
+export const updateAdminProductResponseDisplayOrderMax = 100000;
+
+
+
+export const UpdateAdminProductResponse = zod.object({
+  "id": zod.string().min(1).max(updateAdminProductResponseIdMax).regex(updateAdminProductResponseIdRegExp),
+  "occasion_id": zod.string().min(1).max(updateAdminProductResponseOccasionIdMax),
+  "age_group": zod.string().max(updateAdminProductResponseAgeGroupMax).nullable(),
+  "name_en": zod.string().min(1).max(updateAdminProductResponseNameEnMax),
+  "name_ar": zod.string().min(1).max(updateAdminProductResponseNameArMax),
+  "description_en": zod.string().min(1).max(updateAdminProductResponseDescriptionEnMax),
+  "description_ar": zod.string().min(1).max(updateAdminProductResponseDescriptionArMax),
+  "contents_en": zod.array(zod.string().min(1).max(updateAdminProductResponseContentsEnItemMax)).min(1).max(updateAdminProductResponseContentsEnMax),
+  "contents_ar": zod.array(zod.string().min(1).max(updateAdminProductResponseContentsArItemMax)).min(1).max(updateAdminProductResponseContentsArMax),
+  "price": zod.number().gt(updateAdminProductResponsePriceExclusiveMin).max(updateAdminProductResponsePriceMax),
+  "ideal_for_en": zod.string().min(1).max(updateAdminProductResponseIdealForEnMax),
+  "ideal_for_ar": zod.string().min(1).max(updateAdminProductResponseIdealForArMax),
+  "delivery_en": zod.string().min(1).max(updateAdminProductResponseDeliveryEnMax),
+  "delivery_ar": zod.string().min(1).max(updateAdminProductResponseDeliveryArMax),
+  "is_available": zod.boolean(),
+  "display_order": zod.number().int().min(updateAdminProductResponseDisplayOrderMin).max(updateAdminProductResponseDisplayOrderMax)
+})
+
+
+export const createAdminOccasionBodyIdMax = 80;
+
+
+export const createAdminOccasionBodyIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const createAdminOccasionBodyNameEnMax = 200;
+
+export const createAdminOccasionBodyNameArMax = 200;
+
+export const createAdminOccasionBodyDisplayOrderMin = 0;
+export const createAdminOccasionBodyDisplayOrderMax = 100000;
+
+
+
+export const CreateAdminOccasionBody = zod.object({
+  "id": zod.string().min(1).max(createAdminOccasionBodyIdMax).regex(createAdminOccasionBodyIdRegExp),
+  "name_en": zod.string().min(1).max(createAdminOccasionBodyNameEnMax),
+  "name_ar": zod.string().min(1).max(createAdminOccasionBodyNameArMax),
+  "icon": zod.enum(['gift', 'heart', 'sparkles', 'sun', 'award', 'rings', 'moon']),
+  "is_active": zod.boolean(),
+  "display_order": zod.number().int().min(createAdminOccasionBodyDisplayOrderMin).max(createAdminOccasionBodyDisplayOrderMax)
+})
+
+export const createAdminOccasionResponseIdMax = 80;
+
+
+export const createAdminOccasionResponseIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const createAdminOccasionResponseNameEnMax = 200;
+
+export const createAdminOccasionResponseNameArMax = 200;
+
+export const createAdminOccasionResponseDisplayOrderMin = 0;
+export const createAdminOccasionResponseDisplayOrderMax = 100000;
+
+
+
+export const CreateAdminOccasionResponse = zod.object({
+  "id": zod.string().min(1).max(createAdminOccasionResponseIdMax).regex(createAdminOccasionResponseIdRegExp),
+  "name_en": zod.string().min(1).max(createAdminOccasionResponseNameEnMax),
+  "name_ar": zod.string().min(1).max(createAdminOccasionResponseNameArMax),
+  "icon": zod.enum(['gift', 'heart', 'sparkles', 'sun', 'award', 'rings', 'moon']),
+  "is_active": zod.boolean(),
+  "display_order": zod.number().int().min(createAdminOccasionResponseDisplayOrderMin).max(createAdminOccasionResponseDisplayOrderMax)
+})
+
+
+export const updateAdminOccasionPathIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+
+
+export const UpdateAdminOccasionParams = zod.object({
+  "id": zod.coerce.string().regex(updateAdminOccasionPathIdRegExp)
+})
+
+export const updateAdminOccasionBodyIdMax = 80;
+
+
+export const updateAdminOccasionBodyIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const updateAdminOccasionBodyNameEnMax = 200;
+
+export const updateAdminOccasionBodyNameArMax = 200;
+
+export const updateAdminOccasionBodyDisplayOrderMin = 0;
+export const updateAdminOccasionBodyDisplayOrderMax = 100000;
+
+
+
+export const UpdateAdminOccasionBody = zod.object({
+  "id": zod.string().min(1).max(updateAdminOccasionBodyIdMax).regex(updateAdminOccasionBodyIdRegExp),
+  "name_en": zod.string().min(1).max(updateAdminOccasionBodyNameEnMax),
+  "name_ar": zod.string().min(1).max(updateAdminOccasionBodyNameArMax),
+  "icon": zod.enum(['gift', 'heart', 'sparkles', 'sun', 'award', 'rings', 'moon']),
+  "is_active": zod.boolean(),
+  "display_order": zod.number().int().min(updateAdminOccasionBodyDisplayOrderMin).max(updateAdminOccasionBodyDisplayOrderMax)
+})
+
+export const updateAdminOccasionResponseIdMax = 80;
+
+
+export const updateAdminOccasionResponseIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const updateAdminOccasionResponseNameEnMax = 200;
+
+export const updateAdminOccasionResponseNameArMax = 200;
+
+export const updateAdminOccasionResponseDisplayOrderMin = 0;
+export const updateAdminOccasionResponseDisplayOrderMax = 100000;
+
+
+
+export const UpdateAdminOccasionResponse = zod.object({
+  "id": zod.string().min(1).max(updateAdminOccasionResponseIdMax).regex(updateAdminOccasionResponseIdRegExp),
+  "name_en": zod.string().min(1).max(updateAdminOccasionResponseNameEnMax),
+  "name_ar": zod.string().min(1).max(updateAdminOccasionResponseNameArMax),
+  "icon": zod.enum(['gift', 'heart', 'sparkles', 'sun', 'award', 'rings', 'moon']),
+  "is_active": zod.boolean(),
+  "display_order": zod.number().int().min(updateAdminOccasionResponseDisplayOrderMin).max(updateAdminOccasionResponseDisplayOrderMax)
+})
+
+
 /**
  * @summary Read the available Tawwa storefront catalog
  */

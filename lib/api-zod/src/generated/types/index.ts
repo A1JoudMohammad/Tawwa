@@ -6,8 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminCatalog';
+export * from './adminOccasion';
+export * from './adminOccasionIcon';
+export * from './adminProduct';
 export * from './catalog';
 export * from './catalogError';
 export * from './catalogOccasion';
 export * from './catalogProduct';
 export * from './healthStatus';
+export * from './staffCredentials';
+export * from './staffSession';
