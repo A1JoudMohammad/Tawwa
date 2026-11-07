@@ -18,6 +18,7 @@ const useStore = () => {
   return value;
 };
 const products = catalog.products as Product[];
+const availableOccasions = catalog.occasions.filter(occasion => products.some(product => product.occasion === occasion.id));
 const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
 const productImage = (id: string) => `${import.meta.env.BASE_URL}images/products/${id}.jpg`;
@@ -145,7 +146,7 @@ function Home() {
   const [ctaRevealed, setCtaRevealed] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
   const ctaRef = useRef<HTMLElement | null>(null);
-  const occasions = catalog.occasions.slice(0, 8);
+  const occasions = availableOccasions;
   const iconFor = (icon: string) => icon === 'heart' ? <Heart /> : icon === 'sun' ? <Sun /> : icon === 'award' ? <Award /> : icon === 'moon' ? <Moon /> : icon === 'sparkles' ? <Sparkles /> : <Gift />;
   useEffect(() => {
     const hero = heroRef.current;
@@ -179,7 +180,7 @@ function Home() {
         </div>
       </section>
       <section className="section"><div className="container"><div className="section-head"><div><div className="eyebrow">{t(lang, 'START WITH THE MOMENT', 'ابدأ بالمناسبة')}</div><h2>{t(lang, 'What are we celebrating?', 'ما المناسبة التي نحتفل بها؟')}</h2></div><Link href="/occasions" className="button outline small">{t(lang, 'All occasions', 'كل المناسبات')} <ArrowUpRight size={16} /></Link></div>
-        <div className="occasion-grid">{occasions.map((o, i) => <Link key={o.id} className="occasion-tile" href={`/occasions?occasion=${o.id}`}><span className="occasion-icon">{iconFor(o.icon)}</span><h3>{t(lang, o.name, o.ar)}{o.placeholder && <span style={{ fontSize: 12, display: 'block', fontWeight: 400 }}>{t(lang, 'Coming soon', 'قريباً')}</span>}</h3></Link>)}</div>
+        <div className="occasion-grid">{occasions.map(o => <Link key={o.id} className="occasion-tile" href={`/occasions?occasion=${o.id}`}><span className="occasion-icon">{iconFor(o.icon)}</span><h3>{t(lang, o.name, o.ar)}</h3></Link>)}</div>
       </div></section>
       <section className="container"><div className="fast-strip"><div><div className="eyebrow">{t(lang, 'A LITTLE URGENCY, A LOT OF RELIEF', 'استعجال بسيط وراحة كبيرة')}</div><h2>{t(lang, 'Need it fast? We move fast.', 'تحتاجها بسرعة؟ نحن جاهزون.')}</h2><p style={{ margin: 0 }}>{t(lang, 'Order by 3 PM and we’ll deliver tonight. No frantic mall laps required.', 'اطلب قبل ٣ مساءً ونوصلها الليلة. لا حاجة لجولة متوترة في السوق.')}</p></div><Link className="button" href="/occasions">{t(lang, 'Shop ready-to-go', 'تسوق الهدايا الجاهزة')} <ArrowRight size={18} /></Link></div></section>
       <section className="section"><div className="container"><div className="section-head"><div><div className="eyebrow">{t(lang, 'READY WHEN YOU ARE', 'جاهزة وقتما تحتاج')}</div><h2>{t(lang, 'The crowd favourites', 'اختيارات محبوبة')}</h2><p className="muted">{t(lang, 'Hand-picked boxes for the moments that sneak up on you.', 'هدايا مختارة بعناية للمناسبات التي تأتي فجأة.')}</p></div><Link href="/occasions" className="button outline small">{t(lang, 'Shop all', 'تسوق الكل')}</Link></div><Carousel items={products.slice(0, 7)} /></div></section>
@@ -218,16 +219,19 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: st
 function Shop() {
   const { lang } = useStore();
   const params = new URLSearchParams(window.location.search);
-  const [occasion, setOccasion] = useState(params.get('occasion') || 'all');
+  const [occasion, setOccasion] = useState(() => {
+    const requestedOccasion = params.get('occasion');
+    return availableOccasions.some(item => item.id === requestedOccasion) ? requestedOccasion! : 'all';
+  });
   const [age, setAge] = useState('all');
   const [budget, setBudget] = useState('all');
   const [speed, setSpeed] = useState('all');
   const filtered = useMemo(() => products.filter(p => (occasion === 'all' || p.occasion === occasion) && (age === 'all' || p.age === age) && (budget === 'all' || (budget === 'under25' ? p.price < 25 : budget === '25to35' ? p.price >= 25 && p.price <= 35 : p.price > 35)) && (speed === 'all' || (speed === 'tonight' ? p.delivery.toLowerCase().includes('tonight') : p.delivery.toLowerCase().includes('same-day')))), [occasion, age, budget, speed]);
-  const occasionName = catalog.occasions.find(o => o.id === occasion);
+  const occasionName = availableOccasions.find(o => o.id === occasion);
   return <><PageIntro eyebrow={t(lang, 'OCCASION FIRST', 'المناسبة أولاً')} title={t(lang, occasionName?.name || 'Find the right kind of lovely.', occasionName?.ar || 'اعثر على الهدية المناسبة.')} description={t(lang, 'Ready-made gifts for the people and moments that matter. Filter it down, then leave the wrapping to us.', 'هدايا جاهزة للأشخاص والمناسبات المهمة. اختر ما يناسبك واترك التغليف علينا.')} />
     <main className="section"><div className="container shop-layout"><aside className="filters" aria-label="Product filters">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><h3>{t(lang, 'Make it a match', 'اختر ما يناسبك')}</h3><button className="remove" onClick={() => { setOccasion('all'); setAge('all'); setBudget('all'); setSpeed('all'); }}>{t(lang, 'Reset', 'إعادة')}</button></div>
-      <div className="filter-group"><h3>{t(lang, 'Occasion', 'المناسبة')}</h3>{catalog.occasions.map(o => <label key={o.id}><input type="radio" name="occasion" checked={occasion === o.id} onChange={() => setOccasion(o.id)} />{t(lang, o.name, o.ar)}</label>)}</div>
+      <div className="filter-group"><h3>{t(lang, 'Occasion', 'المناسبة')}</h3>{availableOccasions.map(o => <label key={o.id}><input type="radio" name="occasion" checked={occasion === o.id} onChange={() => setOccasion(o.id)} />{t(lang, o.name, o.ar)}</label>)}</div>
       <div className="filter-group"><h3>{t(lang, 'Budget', 'الميزانية')}</h3>{[['all','Any budget','أي ميزانية'],['under25','Under 25 KWD','أقل من ٢٥ د.ك'],['25to35','25–35 KWD','٢٥–٣٥ د.ك'],['over35','Over 35 KWD','أكثر من ٣٥ د.ك']].map(([v,en,ar]) => <label key={v}><input type="radio" name="budget" checked={budget === v} onChange={() => setBudget(v)} />{t(lang,en,ar)}</label>)}</div>
       <div className="filter-group"><h3>{t(lang, 'Age group', 'الفئة العمرية')}</h3>{[['all','Any age','كل الأعمار'],['3-6','Ages 3–6','الأعمار ٣–٦'],['7-12','Ages 7–12','الأعمار ٧–١٢']].map(([v,en,ar]) => <label key={v}><input type="radio" name="age" checked={age === v} onChange={() => setAge(v)} />{t(lang,en,ar)}</label>)}</div>
       <div className="filter-group"><h3>{t(lang, 'Delivery speed', 'سرعة التوصيل')}</h3>{[['all','Any delivery','كل الخيارات'],['tonight','Tonight','الليلة'],['same','Same day','نفس اليوم']].map(([v,en,ar]) => <label key={v}><input type="radio" name="speed" checked={speed === v} onChange={() => setSpeed(v)} />{t(lang,en,ar)}</label>)}</div>
@@ -255,7 +259,7 @@ function GiftFinder() {
   const [answers, setAnswers] = useState({ occasion: '', recipient: '', budget: '', date: '' });
   const [complete, setComplete] = useState(false);
   const questions = [
-    { key: 'occasion', title: t(lang, 'What’s the occasion?', 'ما المناسبة؟'), choices: catalog.occasions.slice(0, 8).map(o => ({ id: o.id, label: t(lang, o.name, o.ar) })) },
+    { key: 'occasion', title: t(lang, 'What’s the occasion?', 'ما المناسبة؟'), choices: availableOccasions.map(o => ({ id: o.id, label: t(lang, o.name, o.ar) })) },
     { key: 'recipient', title: t(lang, 'Who’s getting the good stuff?', 'لمن هذه الهدية؟'), choices: [{id:'child',label:t(lang,'A kid','طفل')},{id:'newborn',label:t(lang,'New mum or newborn','أم أو مولود جديد')},{id:'retiree',label:t(lang,'Someone retiring','شخص متقاعد')},{id:'friend',label:t(lang,'A friend or family','صديق أو فرد من العائلة')}] },
     { key: 'budget', title: t(lang, 'What feels right?', 'ما الميزانية المناسبة؟'), choices: [{id:'under25',label:t(lang,'Under 25 KWD','أقل من ٢٥ د.ك')},{id:'25to35',label:t(lang,'25–35 KWD','٢٥–٣٥ د.ك')},{id:'over35',label:t(lang,'Over 35 KWD','أكثر من ٣٥ د.ك')}] }
   ];

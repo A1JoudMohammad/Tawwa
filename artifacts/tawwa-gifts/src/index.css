@@ -112,7 +112,7 @@ h3 { font-size:22px; margin-bottom:10px; }
 @keyframes rush { from{transform:translateX(-150vw) scale(.45) rotate(-20deg)} 70%{transform:translateX(0) scale(1.1) rotate(4deg)} to{transform:translateX(0) scale(1)} }
 @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
 @keyframes introFade { 0%,84%{opacity:1} 100%{opacity:0;visibility:hidden} }
-.occasion-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.occasion-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
 .occasion-tile { min-height:185px; border-radius:16px; background:var(--camel); padding:22px; display:flex; flex-direction:column; justify-content:space-between; transition:transform .2s; }
 .occasion-tile:nth-child(3n+2) { background:#eee4d6; }
 .occasion-tile:nth-child(3n) { background:#d5e2dc; }
