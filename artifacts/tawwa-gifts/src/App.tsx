@@ -6,9 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, useRoute, Router as WouterRouter, Link } from 'wouter';
 import { ArrowRight, ArrowUpRight, Award, Check, ChevronLeft, ChevronRight, Gift, Heart, Menu, MessageCircle, Minus, Moon, Plus, Sparkles, Sun, X } from 'lucide-react';
-import catalog from './data/catalog.json';
+import { testimonials, faqs } from './data/catalog.json';
+import type { CatalogProduct as Product } from '@workspace/api-client-react';
+import { CatalogProvider, useCatalog } from './data/catalog-provider';
 
-type Product = (typeof catalog.products)[number];
+const catalog = { testimonials, faqs };
 type CartItem = { productId: string; quantity: number; message?: string; date?: string };
 type ToastAction = { href: string; label: string };
 type ToastMessage = { text: string; action?: ToastAction };
@@ -19,8 +21,6 @@ const useStore = () => {
   if (!value) throw new Error('Tawwa store is unavailable');
   return value;
 };
-const products = catalog.products as Product[];
-const availableOccasions = catalog.occasions.filter(occasion => products.some(product => product.occasion === occasion.id));
 type OccasionAnalyticsEvent = 'occasion_selected' | 'matching_products_viewed';
 type AnalyticsData = Record<string, string | number | boolean>;
 declare global {
@@ -29,7 +29,7 @@ declare global {
   }
 }
 function trackOccasionEvent(name: OccasionAnalyticsEvent, occasionId: string) {
-  if (!availableOccasions.some(occasion => occasion.id === occasionId) || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
   try {
     window.umami?.track(name, { occasion_id: occasionId });
   } catch {
@@ -83,6 +83,7 @@ function ProductArt({ product, className = '' }: { product?: Product; className?
 }
 function ProductCard({ product }: { product: Product }) {
   const { lang } = useStore();
+  const catalog = useCatalog();
   return <article className="product-card" data-testid={`card-product-${product.id}`}>
     <Link href={`/product/${product.id}`} aria-label={`${t(lang, product.name, product.ar)} details`}><ProductArt product={product} /></Link>
     <div className="product-info">
@@ -181,6 +182,7 @@ function Intro() {
   return <div className="intro-overlay" aria-label="Tawwa gift arriving"><button className="intro-skip" onClick={dismiss}>Skip intro</button><GiftMark className="gift-mark" /><div className="intro-title">Tawwa. Gift’s on its way.</div></div>;
 }
 function Home() {
+  const { products, availableOccasions } = useCatalog();
   const { lang } = useStore();
   const [testimonial, setTestimonial] = useState(0);
   const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null);
@@ -387,6 +389,7 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: st
 }
 function Shop() {
   const { lang } = useStore();
+  const { products, availableOccasions } = useCatalog();
   const params = new URLSearchParams(window.location.search);
   const [occasion, setOccasion] = useState(() => {
     const requestedOccasion = params.get('occasion');
@@ -395,7 +398,7 @@ function Shop() {
   const [age, setAge] = useState('all');
   const [budget, setBudget] = useState('all');
   const [speed, setSpeed] = useState('all');
-  const filtered = useMemo(() => products.filter(p => (occasion === 'all' || p.occasion === occasion) && (age === 'all' || p.age === age) && (budget === 'all' || (budget === 'under25' ? p.price < 25 : budget === '25to35' ? p.price >= 25 && p.price <= 35 : p.price > 35)) && (speed === 'all' || (speed === 'tonight' ? p.delivery.toLowerCase().includes('tonight') : p.delivery.toLowerCase().includes('same-day')))), [occasion, age, budget, speed]);
+  const filtered = useMemo(() => products.filter(p => (occasion === 'all' || p.occasion === occasion) && (age === 'all' || p.age === age) && (budget === 'all' || (budget === 'under25' ? p.price < 25 : budget === '25to35' ? p.price >= 25 && p.price <= 35 : p.price > 35)) && (speed === 'all' || (speed === 'tonight' ? p.delivery.toLowerCase().includes('tonight') : p.delivery.toLowerCase().includes('same-day')))), [products, occasion, age, budget, speed]);
   const occasionName = availableOccasions.find(o => o.id === occasion);
   return <><PageIntro eyebrow={t(lang, 'OCCASION FIRST', 'المناسبة أولاً')} title={t(lang, occasionName?.name || 'Find the right kind of lovely.', occasionName?.ar || 'اعثر على الهدية المناسبة.')} description={t(lang, 'Ready-made gifts for the people and moments that matter. Filter it down, then leave the wrapping to us.', 'هدايا جاهزة للأشخاص والمناسبات المهمة. اختر ما يناسبك واترك التغليف علينا.')} />
     <main className="section"><div className="container shop-layout"><aside className="filters" aria-label="Product filters">
@@ -407,6 +410,8 @@ function Shop() {
     </aside><div><p className="muted" aria-live="polite">{t(lang, `${filtered.length} thoughtful boxes`, `${filtered.length} هدية مختارة`)}</p>{filtered.length ? <div className="shop-products">{filtered.map(p => <ProductCard key={p.id} product={p} />)}</div> : <div className="empty-state"><Gift size={42} className="empty-state-mark" /><h2>{t(lang, 'A little too specific?', 'هل اخترت تفاصيل كثيرة؟')}</h2><p>{t(lang, 'Try loosening a filter and we’ll find your gift.', 'خفف بعض الخيارات وسنجد الهدية المناسبة.')}</p><button className="button" onClick={() => { setAge('all'); setBudget('all'); setSpeed('all'); }}>{t(lang, 'Clear filters', 'مسح الخيارات')}</button></div>}</div></div></main></>;
 }
 function ProductPage() {
+  const catalog = useCatalog();
+  const { products } = catalog;
   const { lang, addItem, toast } = useStore();
   const [, params] = useRoute('/product/:id');
   const product = products.find(p => p.id === params?.id);
@@ -442,6 +447,7 @@ function ProductPage() {
 }
 function GiftFinder() {
   const { lang } = useStore();
+  const { products, availableOccasions } = useCatalog();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ occasion: '', recipient: '', budget: '', date: '' });
   const [complete, setComplete] = useState(false);
@@ -457,6 +463,8 @@ function GiftFinder() {
   return <><PageIntro eyebrow={t(lang, 'A VERY SHORT QUIZ', 'اختبار سريع')} title={t(lang, 'We’ll find the one.', 'سنجد الهدية المناسبة.')} description={t(lang, 'Four little questions. No overthinking required.', 'أربع أسئلة بسيطة. لا داعي للتفكير كثيراً.')} /><main className="container">{!complete ? <div className="quiz-panel"><div className="progress-track" aria-label={`Step ${step + 1} of 4`}><span style={{ width: `${(step + 1) * 25}%` }} /></div>{step < 3 ? <><div className="eyebrow">{t(lang, `QUESTION 0${step + 1} / 04`, `السؤال ٠${step + 1} / ٠٤`)}</div><h2>{current.title}</h2><div className="choice-grid">{current.choices.map(choice => <button key={choice.id} className={`choice ${answers[current.key as keyof typeof answers] === choice.id ? 'selected' : ''}`} onClick={() => answer(current.key as keyof typeof answers, choice.id)}>{choice.label}</button>)}</div><div style={{ display:'flex', justifyContent:'space-between', gap:12 }}><button className="button outline" disabled={step === 0} onClick={() => setStep(step - 1)}>{t(lang, 'Back', 'السابق')}</button><button className="button" disabled={!answers[current.key as keyof typeof answers]} onClick={() => setStep(step + 1)}>{t(lang, 'Next', 'التالي')} <ArrowRight size={18} /></button></div></> : <><div className="eyebrow">{t(lang, 'QUESTION 04 / 04', 'السؤال ٠٤ / ٠٤')}</div><h2>{t(lang, 'When should it arrive?', 'متى تريد وصولها؟')}</h2><div className="field"><label htmlFor="finder-date">{t(lang, 'Delivery date', 'تاريخ التوصيل')}</label><input id="finder-date" type="date" min={new Date().toISOString().slice(0,10)} value={answers.date} onChange={e => answer('date',e.target.value)} /></div><div style={{ display:'flex', justifyContent:'space-between', gap:12 }}><button className="button outline" onClick={() => setStep(2)}>{t(lang, 'Back', 'السابق')}</button><button className="button" onClick={() => setComplete(true)}>{t(lang, 'Show my gifts', 'اعرض الهدايا')} <ArrowRight size={18} /></button></div></>}</div> : <div className="section"><div className="section-head"><div><div className="eyebrow">{t(lang, 'YOUR SHORTLIST', 'اختياراتك')}</div><h2>{t(lang, 'Good picks. You’ve got this.', 'اختيارات جميلة. أنت قادر على ذلك.')}</h2><p className="muted">{t(lang, 'A few boxes that fit the moment. Choose your favourite.', 'بعض الهدايا المناسبة للمناسبة. اختر ما يعجبك.')}</p></div><button className="button outline small" onClick={() => {setStep(0);setAnswers({ occasion: '', recipient: '', budget: '', date: '' });setComplete(false);}}>{t(lang,'Start again','ابدأ من جديد')}</button></div>{results.length ? <div className="shop-products">{results.slice(0,4).map(p => <ProductCard key={p.id} product={p} />)}</div> : <div className="empty-state"><p>{t(lang, 'We’re still curating that occasion. Browse all boxes for now.', 'نعمل على تجهيز هدايا هذه المناسبة. تصفح كل الهدايا الآن.')}</p><Link className="button" href="/occasions">{t(lang, 'Browse occasions','تصفح المناسبات')}</Link></div>}</div>}</main></>;
 }
 function Cart() {
+  const catalog = useCatalog();
+  const { products } = catalog;
   const { lang, cart, updateQty, removeItem } = useStore();
   const [checkout, setCheckout] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -570,9 +578,9 @@ function InnerApp() {
     removeItem: id => setCart(old => old.filter(i => i.productId !== id)),
     toast: (text, action) => setToastMessage({ text, action })
   }), [lang, cart]);
-  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><Switch>
+  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><CatalogProvider><Switch>
     <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
-  </Switch></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
+  </Switch></CatalogProvider></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
     <span>{toastMessage.text}</span>
     {toastMessage.action && <Link className="toast-action" href={toastMessage.action.href} data-testid="link-toast-action">{toastMessage.action.label}</Link>}
   </div>}</div></Store.Provider>;

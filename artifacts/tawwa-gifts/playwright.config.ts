@@ -12,14 +12,10 @@ export default defineConfig({
   reporter: 'list',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: 'http://127.0.0.1:4178',
+    // The storefront now uses the API artifact; both must run through the
+    // shared proxy rather than a standalone Vite server.
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:80',
     launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
     trace: 'retain-on-failure',
-  },
-  webServer: {
-    command: 'BASE_PATH=/ PORT=4178 pnpm run dev',
-    url: 'http://127.0.0.1:4178',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
   },
 });

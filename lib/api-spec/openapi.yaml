@@ -11,6 +11,24 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /catalog:
+    get:
+      operationId: getCatalog
+      tags: [catalog]
+      summary: Read the available Tawwa storefront catalog
+      responses:
+        "200":
+          description: Ordered catalog from Supabase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Catalog"
+        "503":
+          description: Catalog temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogError"
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +44,57 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    Catalog:
+      type: object
+      required: [occasions, products, governorates]
+      properties:
+        occasions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogOccasion"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogProduct"
+        governorates:
+          type: array
+          items:
+            type: string
+    CatalogOccasion:
+      type: object
+      required: [id, name, ar, icon]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        ar: { type: string }
+        icon: { type: string }
+    CatalogProduct:
+      type: object
+      required: [id, occasion, name, ar, description, descriptionAr, contents, contentsAr, price, idealFor, idealForAr, delivery, deliveryAr]
+      properties:
+        id: { type: string }
+        occasion: { type: string }
+        age: { type: string }
+        name: { type: string }
+        ar: { type: string }
+        description: { type: string }
+        descriptionAr: { type: string }
+        contents:
+          type: array
+          items: { type: string }
+        contentsAr:
+          type: array
+          items: { type: string }
+        price: { type: number, exclusiveMinimum: 0 }
+        idealFor: { type: string }
+        idealForAr: { type: string }
+        delivery: { type: string }
+        deliveryAr: { type: string }
+    CatalogError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
     HealthStatus:
       type: object
       properties:
