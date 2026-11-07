@@ -37,6 +37,8 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+/artifacts/tawwa-gifts/test-results/
+/artifacts/tawwa-gifts/playwright-report/
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
