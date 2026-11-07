@@ -49,7 +49,8 @@ const formatDeliveryDate = (value: string | undefined, lang: 'en' | 'ar') => {
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(year, month - 1, day)));
 };
-const productImage = (id: string) => `${import.meta.env.BASE_URL}images/products/${id}.jpg`;
+const productImageNames: Record<string, string> = { 'birthday-bright': 'birthday-brights' };
+const productImage = (id: string) => `${import.meta.env.BASE_URL}images/products/${productImageNames[id] ?? id}.jpg`;
 
 function GiftMark({ className = '', decorative = false }: { className?: string; decorative?: boolean }) {
   return <svg className={className} viewBox="0 0 120 96" role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : 'Tawwa gift box mark'} aria-hidden={decorative || undefined} xmlns="http://www.w3.org/2000/svg"><g className="speed-lines" fill="none" stroke="#C25A30" strokeWidth="5" strokeLinecap="round"><path d="M6 50h20M2 64h24M10 78h16"/></g><g transform="rotate(-5 72 62)"><rect x="40" y="46" width="64" height="44" rx="8" fill="#1F6F6B"/><rect x="35" y="34" width="74" height="16" rx="6" fill="#D9B991"/><rect x="65" y="34" width="14" height="56" fill="#C25A30"/><path d="M72 34C60 14 42 22 52 32C57 36 66 35 72 34Z" fill="#C25A30"/><path d="M72 34C84 14 102 22 92 32C87 36 78 35 72 34Z" fill="#C25A30"/><rect x="66" y="29" width="12" height="9" rx="4" fill="#C25A30"/></g></svg>;
