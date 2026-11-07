@@ -21,6 +21,21 @@ const useStore = () => {
 };
 const products = catalog.products as Product[];
 const availableOccasions = catalog.occasions.filter(occasion => products.some(product => product.occasion === occasion.id));
+type OccasionAnalyticsEvent = 'occasion_selected' | 'matching_products_viewed';
+type AnalyticsData = Record<string, string | number | boolean>;
+declare global {
+  interface Window {
+    umami?: { track(name: string, data?: AnalyticsData): void };
+  }
+}
+function trackOccasionEvent(name: OccasionAnalyticsEvent, occasionId: string) {
+  if (!availableOccasions.some(occasion => occasion.id === occasionId) || typeof window === 'undefined') return;
+  try {
+    window.umami?.track(name, { occasion_id: occasionId });
+  } catch {
+    // Analytics must never interrupt shopping.
+  }
+}
 const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
 const formatDeliveryDate = (value: string | undefined, lang: 'en' | 'ar') => {
@@ -182,12 +197,27 @@ function Home() {
   const visibleProducts = selectedOccasion ? products.filter(product => product.occasion === selectedOccasion) : products.slice(0, 7);
   const selectedName = occasions.find(occasion => occasion.id === selectedOccasion);
   const chooseOccasion = (id: string) => {
+    trackOccasionEvent('occasion_selected', id);
     setSelectedOccasion(id);
     window.setTimeout(() => productsRef.current?.scrollIntoView({
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       block: 'start'
     }), 40);
   };
+  useEffect(() => {
+    if (!selectedOccasion || !availableOccasions.some(occasion => occasion.id === selectedOccasion)) return;
+    const section = productsRef.current;
+    if (!section) return;
+    let tracked = false;
+    const observer = new IntersectionObserver(entries => {
+      if (tracked || !entries.some(entry => entry.isIntersecting)) return;
+      tracked = true;
+      trackOccasionEvent('matching_products_viewed', selectedOccasion);
+      observer.disconnect();
+    }, { threshold: 0.25 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [selectedOccasion]);
   const scrollToOccasion = (index: number) => {
     const rail = occasionRailRef.current;
     if (!rail || occasions.length === 0) return;

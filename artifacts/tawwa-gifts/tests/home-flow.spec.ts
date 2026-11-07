@@ -41,6 +41,46 @@ test('English home flow reveals the prompt and shows only matching gifts', async
   await expect(results.locator('#home-products-title')).toBeInViewport();
 });
 
+test('occasion analytics use catalog IDs and wait until matching gifts are viewed', async ({ page }) => {
+  await page.addInitScript(() => {
+    const analyticsWindow = window as typeof window & {
+      analyticsEvents?: { name: string; data?: Record<string, string | number | boolean> }[];
+      umami?: { track(name: string, data?: Record<string, string | number | boolean>): void };
+    };
+    analyticsWindow.analyticsEvents = [];
+    analyticsWindow.umami = {
+      track: (name, data) => analyticsWindow.analyticsEvents?.push({ name, data }),
+    };
+  });
+  await page.goto('/');
+  await page.getByTestId('button-occasion-kids').click();
+  const results = page.locator('#occasion-products');
+  await expect(results.locator('#home-products-title')).toHaveText('Kids’ Birthday');
+  await expect(results.locator('#home-products-title')).toBeInViewport();
+  await expect.poll(() => page.evaluate(() => {
+    const analyticsWindow = window as typeof window & {
+      analyticsEvents?: { name: string; data?: Record<string, string | number | boolean> }[];
+    };
+    return analyticsWindow.analyticsEvents ?? [];
+  })).toEqual([
+    { name: 'occasion_selected', data: { occasion_id: 'kids' } },
+    { name: 'matching_products_viewed', data: { occasion_id: 'kids' } },
+  ]);
+});
+
+test('shopping continues when analytics throws', async ({ page }) => {
+  await page.addInitScript(() => {
+    const analyticsWindow = window as typeof window & {
+      umami?: { track(): void };
+    };
+    analyticsWindow.umami = { track: () => { throw new Error('analytics unavailable'); } };
+  });
+  await page.goto('/');
+  await page.getByTestId('button-occasion-kids').click();
+  await expect(page.locator('#home-products-title')).toHaveText('Kids’ Birthday');
+  await expect(page.getByTestId('card-product-little-wonder')).toBeVisible();
+});
+
 for (const language of [
   {
     label: 'English',
