@@ -480,10 +480,13 @@ function Cart() {
       block: 'start',
     });
   }, [checkout]);
-  const enriched = cart.map(item => ({ ...item, product: products.find(p => p.id === item.productId) })).filter(item => item.product);
-  const subtotal = enriched.reduce((sum, item) => sum + item.product!.price * item.quantity, 0);
+  const enriched = cart.map(item => ({ ...item, product: products.find(p => p.id === item.productId) }));
+  const hasUnavailable = enriched.some(item => !item.product);
+  const reviewing = checkout && !hasUnavailable;
+  const subtotal = enriched.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const checkoutSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setError('');
+    if (hasUnavailable || !cart.length) return;
     const form = e.currentTarget;
     if (!form.reportValidity()) { setError(t(lang, 'Please check the highlighted details.', 'يرجى التأكد من البيانات المطلوبة.')); return; }
     const id = `TW-${Math.floor(100000 + Math.random() * 899999)}`;
@@ -492,11 +495,24 @@ function Cart() {
   };
   if (confirmed) return <main className="container success-panel"><div className="success-mark"><Check size={36} /></div><div className="eyebrow">{t(lang, 'ORDER CONFIRMED', 'تم تأكيد الطلب')}</div><h1 style={{ fontSize: 46 }}>{t(lang, 'Your gift is on its way.', 'توّا وتوصلك الهدية.')}</h1><p className="muted">{t(lang, 'Mock order', 'رقم الطلب التجريبي')} <strong>{orderId}</strong>. {t(lang, 'In a real order, we’d send delivery updates and tracking details. For now, consider it handled.', 'في الطلب الحقيقي سنرسل تحديثات التوصيل ورابط التتبع. الآن اعتبر الأمر منتهياً.')}</p><Link className="button" href="/">{t(lang, 'Back to Tawwa', 'العودة إلى توّا')}</Link></main>;
   if (!enriched.length) return <main className="container"><div className="empty-state"><GiftMark className="brand-mark empty-state-mark" /><div className="eyebrow">{t(lang, 'YOUR CART', 'سلتك')}</div><h1 style={{ fontSize: 42 }}>{t(lang, 'A lovely gift goes here.', 'هديتك الجميلة تبدأ من هنا.')}</h1><p className="muted">{t(lang, 'Your cart is taking a little breather. Let’s find someone a lovely surprise.', 'سلتك فارغة الآن. لنجد مفاجأة جميلة لشخص تحبه.')}</p><Link className="button" href="/occasions">{t(lang, 'Browse the boxes', 'تصفح الهدايا')}</Link></div></main>;
-  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, checkout ? 'A few details, then we’re off.' : 'Your thoughtful picks.', checkout ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, checkout ? 'This is a demo checkout. No payment details or money are collected.' : 'A small note: this demo doesn’t collect payments.', checkout ? 'هذه تجربة إتمام طلب توضيحية. لا نطلب بيانات دفع ولا نستلم أموالاً.' : 'ملاحظة: هذا المتجر التجريبي لا يستقبل أي مدفوعات.')} />
+  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, reviewing ? 'A few details, then we’re off.' : 'Your thoughtful picks.', reviewing ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, reviewing ? 'This is a demo checkout. No payment details or money are collected.' : 'A small note: this demo doesn’t collect payments.', reviewing ? 'هذه تجربة إتمام طلب توضيحية. لا نطلب بيانات دفع ولا نستلم أموالاً.' : 'ملاحظة: هذا المتجر التجريبي لا يستقبل أي مدفوعات.')} />
   <main className="container section"><div className="checkout-grid"><section className="panel">
-    {!checkout ? <>
+    {hasUnavailable && <p className="cart-unavailable-notice" role="alert" data-testid="cart-unavailable-notice">
+      {t(lang, 'Some saved gifts are no longer available. Your messages and dates are still saved. Remove unavailable gifts before checkout; they are not included in the total.', 'بعض الهدايا المحفوظة لم تعد متاحة. رسائلك وتواريخك ما زالت محفوظة. أزل الهدايا غير المتاحة قبل إتمام الطلب؛ فهي غير مشمولة في الإجمالي.')}
+    </p>}
+    {!reviewing ? <>
       <h2 style={{ fontSize: 27 }}>{t(lang, 'In your bag', 'في سلتك')}</h2>
-      {enriched.map(({ product, quantity, message, date }) => <div className="cart-row" key={product!.id}>
+      {enriched.map(({ productId, product, quantity, message, date }) => !product ? <div className="cart-row cart-row-unavailable" key={productId} data-testid={`cart-unavailable-${productId}`}>
+        <div className="cart-row-art"><MiniGift /></div>
+        <div>
+          <h3>{t(lang, 'Unavailable gift box', 'صندوق هدايا غير متاح')}</h3>
+          <p className="muted">{t(lang, 'Saved gift reference', 'مرجع الهدية المحفوظة')}: <bdi>{productId}</bdi></p>
+          <p>{t(lang, 'This box is no longer available.', 'هذا الصندوق لم يعد متاحاً.')}</p>
+          <GiftDetails message={message} date={date} productId={productId} />
+          <p className="muted">{t(lang, 'Quantity', 'الكمية')}: {quantity}</p>
+          <button className="remove" onClick={() => { removeItem(productId); setCheckout(false); }} data-testid={`button-cart-remove-${productId}`}>{t(lang, 'Remove', 'إزالة')}</button>
+        </div>
+      </div> : <div className="cart-row" key={product.id}>
         <div className="cart-row-art"><MiniGift /></div>
         <div>
           <h3>{t(lang, product!.name, product!.ar)}</h3>
@@ -513,7 +529,7 @@ function Cart() {
       </div>)}
       <div className="summary-line total"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
       <div className="summary-line muted"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{t(lang, 'Calculated for your area', 'يحدد حسب المنطقة')}</span></div>
-      <button className="button" style={{ width: '100%', marginTop: 18 }} onClick={() => setCheckout(true)} data-testid="button-continue-checkout">
+      <button className="button" style={{ width: '100%', marginTop: 18 }} disabled={hasUnavailable} onClick={() => { if (!hasUnavailable) setCheckout(true); }} data-testid="button-continue-checkout">
         {t(lang, 'Continue to demo checkout', 'تابع لإتمام الطلب التجريبي')} <ArrowRight size={18} />
       </button>
     </> : <>

@@ -263,6 +263,9 @@ h3 { font-size:22px; margin-bottom:10px; }
 .cart-row { display:grid; grid-template-columns:100px minmax(0,1fr) auto; gap:16px; align-items:start; padding:18px 0; border-bottom:1px solid var(--border); }
 .cart-row-art { height:88px; background:#eee4d6; display:grid; place-items:center; border-radius:12px; }
 .cart-row-art .mini-gift { transform:scale(.5); }
+.cart-unavailable-notice { padding:16px; border:1px solid var(--terracotta); border-radius:12px; background:#fff0e6; }
+.cart-row-unavailable h3 { color:var(--terracotta); }
+.cart-row-unavailable p { overflow-wrap:anywhere; }
 .gift-details { display:grid; gap:8px; margin:12px 0 0; }
 .gift-details > div { display:grid; grid-template-columns:minmax(92px,auto) minmax(0,1fr); gap:9px; align-items:start; }
 .gift-details dt { color:rgba(31,42,42,.72); font-size:12px; font-weight:600; }
