@@ -12,10 +12,13 @@ import type { CatalogProduct as Product } from '@workspace/api-client-react';
 import { CatalogProvider, useCatalog } from './data/catalog-provider';
 
 const catalog = { testimonials, faqs };
-type CartItem = { productId: string; quantity: number; message?: string; date?: string };
+type CartItem = { productId: string; quantity: number; message?: string; date?: string; acknowledgedPrice?: number };
+// Saved prices are review history only. All totals still use the live catalog.
+const hasSavedPrice = (price: unknown): price is number => typeof price === 'number' && Number.isFinite(price) && price >= 0;
+const samePrice = (saved: unknown, current: number) => hasSavedPrice(saved) && Math.round(saved * 1000) === Math.round(current * 1000);
 type ToastAction = { href: string; label: string };
 type ToastMessage = { text: string; action?: ToastAction };
-type StoreValue = { lang: 'en' | 'ar'; setLang: (lang: 'en' | 'ar') => void; cart: CartItem[]; addItem: (productId: string, message?: string, date?: string) => void; updateQty: (id: string, delta: number) => void; removeItem: (id: string) => void; toast: (message: string, action?: ToastAction) => void };
+type StoreValue = { lang: 'en' | 'ar'; setLang: (lang: 'en' | 'ar') => void; cart: CartItem[]; addItem: (productId: string, price: number, message?: string, date?: string) => void; acknowledgePrices: (products: Product[]) => void; updateQty: (id: string, delta: number) => void; removeItem: (id: string) => void; toast: (message: string, action?: ToastAction) => void };
 const Store = createContext<StoreValue | null>(null);
 const useStore = () => {
   const value = useContext(Store);
@@ -421,7 +424,7 @@ function ProductPage() {
   const [date, setDate] = useState('');
   if (!product) return <NotFound />;
   const add = () => {
-    addItem(product.id, message, date);
+    addItem(product.id, product.price, message, date);
     toast(t(lang, 'Added 🎁', 'أضيفت 🎁'), {
       href: '/cart',
       label: t(lang, 'View cart', 'عرض السلة'),
@@ -467,7 +470,7 @@ function GiftFinder() {
 function Cart() {
   const catalog = useCatalog();
   const { products } = catalog;
-  const { lang, cart, updateQty, removeItem } = useStore();
+  const { lang, cart, updateQty, removeItem, acknowledgePrices } = useStore();
   const [checkout, setCheckout] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -482,11 +485,14 @@ function Cart() {
   }, [checkout]);
   const enriched = cart.map(item => ({ ...item, product: products.find(p => p.id === item.productId) }));
   const hasUnavailable = enriched.some(item => !item.product);
+  const priceChanges = enriched.filter(item => item.product && !samePrice(item.acknowledgedPrice, item.product.price));
+  const needsPriceReview = priceChanges.length > 0;
   const reviewing = checkout && !hasUnavailable;
   const subtotal = enriched.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
   const checkoutSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setError('');
-    if (hasUnavailable || !cart.length) return;
+    // Guard submission too: Enter or a programmatic submit cannot bypass review.
+    if (hasUnavailable || !cart.length || needsPriceReview) return;
     const form = e.currentTarget;
     if (!form.reportValidity()) { setError(t(lang, 'Please check the highlighted details.', 'يرجى التأكد من البيانات المطلوبة.')); return; }
     const id = `TW-${Math.floor(100000 + Math.random() * 899999)}`;
@@ -500,6 +506,22 @@ function Cart() {
     {hasUnavailable && <p className="cart-unavailable-notice" role="alert" data-testid="cart-unavailable-notice">
       {t(lang, 'Some saved gifts are no longer available. Your messages and dates are still saved. Remove unavailable gifts before checkout; they are not included in the total.', 'بعض الهدايا المحفوظة لم تعد متاحة. رسائلك وتواريخك ما زالت محفوظة. أزل الهدايا غير المتاحة قبل إتمام الطلب؛ فهي غير مشمولة في الإجمالي.')}
     </p>}
+    {needsPriceReview && <section className="cart-unavailable-notice" role="alert" aria-labelledby="price-review-title" data-testid="cart-price-change-notice">
+      <h2 id="price-review-title" style={{ fontSize: 24 }}>{t(lang, 'Please review the latest prices', 'يرجى مراجعة الأسعار الحالية')}</h2>
+      <p>{t(lang, 'Saved gift prices have changed or need checking. Your messages and delivery dates are still saved. Review the current prices and updated total before confirming.', 'تغيّرت أسعار الهدايا المحفوظة أو تحتاج إلى مراجعة. رسائلك ومواعيد التوصيل ما زالت محفوظة. راجع الأسعار الحالية والإجمالي المحدّث قبل تأكيد الطلب.')}</p>
+      <ul>
+        {priceChanges.map(({ product, acknowledgedPrice }) => <li key={product!.id} data-testid={`price-change-${product!.id}`}>
+          <strong>{t(lang, product!.name, product!.ar)}</strong>{': '}
+          {hasSavedPrice(acknowledgedPrice)
+            ? t(lang, `Previously ${fmt(acknowledgedPrice)} → Now ${fmt(product!.price)} per box`, `سابقاً ${fmt(acknowledgedPrice)} ← الآن ${fmt(product!.price)} للصندوق`)
+            : t(lang, `Previous price not saved. Current price: ${fmt(product!.price)} per box`, `السعر السابق غير محفوظ. السعر الحالي: ${fmt(product!.price)} للصندوق`)}
+        </li>)}
+      </ul>
+      <p><strong>{t(lang, 'Updated order total', 'إجمالي الطلب المحدّث')}: <bdi>{fmt(subtotal)}</bdi></strong></p>
+      <button type="button" className="button secondary" disabled={hasUnavailable} onClick={() => acknowledgePrices(products)} data-testid="button-accept-prices">
+        {t(lang, 'I’ve reviewed the updated total', 'راجعت الإجمالي المحدّث')}
+      </button>
+    </section>}
     {!reviewing ? <>
       <h2 style={{ fontSize: 27 }}>{t(lang, 'In your bag', 'في سلتك')}</h2>
       {enriched.map(({ productId, product, quantity, message, date }) => !product ? <div className="cart-row cart-row-unavailable" key={productId} data-testid={`cart-unavailable-${productId}`}>
@@ -554,7 +576,7 @@ function Cart() {
         <div className="field"><label htmlFor="checkout-area">{t(lang, 'Governorate', 'المحافظة')} *</label><select id="checkout-area" name="area" required defaultValue=""><option value="" disabled>{t(lang, 'Choose an area', 'اختر المحافظة')}</option>{catalog.governorates.map(area => <option key={area}>{area}</option>)}</select></div>
         <div className="field"><label htmlFor="checkout-address">{t(lang, 'Area / block / street', 'المنطقة / القطعة / الشارع')} *</label><input id="checkout-address" name="address" required autoComplete="street-address" /></div>
         <div className="field"><label htmlFor="checkout-recipient">{t(lang, 'Recipient name (if different)', 'اسم المستلم (إن اختلف)')}</label><input id="checkout-recipient" name="recipient" /></div>
-        <button className="button" type="submit">{t(lang, 'Confirm demo order', 'تأكيد الطلب التجريبي')} <Check size={18} /></button>
+        <button className="button" type="submit" disabled={needsPriceReview} data-testid="button-confirm-order">{t(lang, 'Confirm demo order', 'تأكيد الطلب التجريبي')} <Check size={18} /></button>
         <button className="remove" type="button" onClick={() => setCheckout(false)}>{t(lang, 'Back to cart', 'العودة للسلة')}</button>
         <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>{t(lang, 'Demo only. No card details, payment, or backend are connected.', 'تجربة فقط. لا توجد بيانات بطاقة أو دفع أو خادم متصل.')}</p>
       </form>
@@ -591,7 +613,11 @@ function InnerApp() {
   const store = useMemo<StoreValue>(() => ({
     lang, setLang,
     cart,
-    addItem: (productId, messageText, date) => setCart(old => { const existing = old.find(i => i.productId === productId); return existing ? old.map(i => i.productId === productId ? { ...i, quantity: i.quantity + 1, message: messageText || i.message, date: date || i.date } : i) : [...old, { productId, quantity: 1, message: messageText, date }]; }),
+    addItem: (productId, price, messageText, date) => setCart(old => { const existing = old.find(i => i.productId === productId); return existing ? old.map(i => i.productId === productId ? { ...i, quantity: i.quantity + 1, message: messageText || i.message, date: date || i.date } : i) : [...old, { productId, quantity: 1, message: messageText, date, acknowledgedPrice: price }]; }),
+    acknowledgePrices: products => setCart(old => old.map(item => {
+      const product = products.find(p => p.id === item.productId);
+      return product ? { ...item, acknowledgedPrice: product.price } : item;
+    })),
     updateQty: (id, delta) => setCart(old => old.map(i => i.productId === id ? { ...i, quantity: i.quantity + delta } : i).filter(i => i.quantity > 0)),
     removeItem: id => setCart(old => old.filter(i => i.productId !== id)),
     toast: (text, action) => setToastMessage({ text, action })

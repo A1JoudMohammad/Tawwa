@@ -42,11 +42,12 @@ test('gift messages and delivery dates stay with each box through reload and che
 
   await expect.poll(() => page.evaluate(() => {
     return JSON.parse(localStorage.getItem('tawwa-cart') || '[]');
-  })).toEqual(gifts.map(gift => ({
+  })).toEqual(gifts.map(gift => expect.objectContaining({
     productId: gift.id,
     quantity: 1,
     message: gift.message,
     date: gift.date,
+    acknowledgedPrice: expect.any(Number),
   })));
 
   await page.reload();
