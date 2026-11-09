@@ -28,6 +28,10 @@ async function buildAll() {
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
+      // Vercel's Express entrypoint detector requires a literal framework import
+      // in the output. Keep Express external so esbuild preserves that import;
+      // Express is declared as a runtime dependency and traced by Vercel.
+      "express",
       "*.node",
       "sharp",
       "better-sqlite3",

@@ -1,2 +1,3 @@
 - [Tawwa business context](tawwa-business-context.md) — Kuwait gift boxes for busy last-minute shoppers; brand voice is calm, warm, and lightly witty.
 - [Catalog staff access](catalog-staff-access.md) — Supabase identity and RLS protect staff writes; shared external migrations must remain merge-gated.
+- [Vercel Express detection](vercel-express-detection.md) — executable API bundles can still fail Vercel's literal framework-import check.

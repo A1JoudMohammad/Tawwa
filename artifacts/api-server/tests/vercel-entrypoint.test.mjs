@@ -12,6 +12,11 @@ test("Vercel points to the API build directory rather than the frontend output",
 
 test("the production bundle exports a working Express app without requiring PORT on Vercel", () => {
   execFileSync(process.execPath, ["build.mjs"], { stdio: "pipe" });
+  const bundle = readFileSync("dist/index.mjs", "utf8");
+  // Mirrors Vercel's framework-import check, not just Node's ability to run
+  // the bundle. Fully bundling Express erases this import and fails deployment.
+  const vercelExpressImport = /(?:from|require|import)\s*(?:\(\s*)?["']express["']\s*(?:\))?/;
+  assert.match(bundle, vercelExpressImport, "Vercel must recognize the built entrypoint as Express");
   const env = { ...process.env, VERCEL: "1", NODE_ENV: "production" };
   delete env.PORT;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
