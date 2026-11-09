@@ -26,4 +26,7 @@ After these files reach the GitHub branch connected to Vercel, redeploy. Check
 This deploys the API only. A separately deployed storefront also needs its
 `/api/*` requests routed to this API under the storefront's origin, particularly
 for staff session cookies. Do not point that routing at a temporary development
-preview. Page-refresh routing for the storefront is a separate configuration.
+preview. The storefront's `artifacts/tawwa-gifts/vercel.json` supplies this routing
+and its page-refresh fallback. See `artifacts/tawwa-gifts/DEPLOYING.md` for the
+second project's settings. Opening the API domain at `/` is not a storefront
+check; use `/api/healthz` to check the API.
