@@ -10,9 +10,9 @@ import { ArrowRight, ArrowUpRight, Award, Check, ChevronLeft, ChevronRight, Gift
 import { testimonials, faqs } from './data/catalog.json';
 import type { CatalogProduct as Product } from '@workspace/api-client-react';
 import { CatalogProvider, useCatalog } from './data/catalog-provider';
+import { useCart, type CartItem } from './hooks/use-cart';
 
 const catalog = { testimonials, faqs };
-type CartItem = { productId: string; quantity: number; message?: string; date?: string; acknowledgedPrice?: number };
 // Saved prices are review history only. All totals still use the live catalog.
 const hasSavedPrice = (price: unknown): price is number => typeof price === 'number' && Number.isFinite(price) && price >= 0;
 const samePrice = (saved: unknown, current: number) => hasSavedPrice(saved) && Math.round(saved * 1000) === Math.round(current * 1000);
@@ -600,11 +600,9 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 }
 function InnerApp() {
   const [lang, setLang] = useState<'en' | 'ar'>(() => (localStorage.getItem('tawwa-lang') === 'ar' ? 'ar' : 'en'));
-  const [cart, setCart] = useState<CartItem[]>(() => { try { return JSON.parse(localStorage.getItem('tawwa-cart') || '[]') as CartItem[]; } catch { return []; } });
+  const [cart, setCart] = useCart();
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
   useEffect(() => { document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'; localStorage.setItem('tawwa-lang', lang); }, [lang]);
-  useEffect(() => { localStorage.setItem('tawwa-cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { const sync = () => { try { setCart(JSON.parse(localStorage.getItem('tawwa-cart') || '[]') as CartItem[]); } catch { setCart([]); } }; window.addEventListener('tawwa-cart-update', sync); return () => window.removeEventListener('tawwa-cart-update', sync); }, []);
   useEffect(() => {
     if (!toastMessage) return;
     const id = window.setTimeout(() => setToastMessage(null), 5000);
@@ -621,7 +619,7 @@ function InnerApp() {
     updateQty: (id, delta) => setCart(old => old.map(i => i.productId === id ? { ...i, quantity: i.quantity + delta } : i).filter(i => i.quantity > 0)),
     removeItem: id => setCart(old => old.filter(i => i.productId !== id)),
     toast: (text, action) => setToastMessage({ text, action })
-  }), [lang, cart]);
+  }), [lang, cart, setCart]);
   return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><CatalogProvider lang={lang}><Switch>
     <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
   </Switch></CatalogProvider></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
