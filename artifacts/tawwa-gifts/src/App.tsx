@@ -596,7 +596,7 @@ function InnerApp() {
     removeItem: id => setCart(old => old.filter(i => i.productId !== id)),
     toast: (text, action) => setToastMessage({ text, action })
   }), [lang, cart]);
-  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><CatalogProvider><Switch>
+  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><CatalogProvider lang={lang}><Switch>
     <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
   </Switch></CatalogProvider></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
     <span>{toastMessage.text}</span>

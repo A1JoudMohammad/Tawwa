@@ -3,3 +3,7 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# Generated browser test reports and traces
+/artifacts/tawwa-gifts/test-results/
+/artifacts/tawwa-gifts/playwright-report/

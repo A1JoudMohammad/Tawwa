@@ -14,6 +14,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - Catalog access policy migration: `artifacts/api-server/supabase/migrations/202611070001_catalog_read_access.sql`. This was applied to the connected Supabase project; do not reapply it blindly.
 - `pnpm --filter @workspace/api-server test` — catalog contract/mapping tests.
 - Browser tests use the shared proxy by default; run both managed API and storefront workflows first. `PLAYWRIGHT_BASE_URL` can override the proxy URL.
+- `pnpm --filter @workspace/tawwa-gifts test:catalog` — deterministic bilingual catalog UI and outage regressions. Only the storefront workflow is required: these tests intercept `/api/catalog` with independent fixtures and never read or write the live Supabase catalog.
 
 ## Stack
 

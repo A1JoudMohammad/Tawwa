@@ -9,11 +9,11 @@ export function useCatalog() {
   return { ...catalog, availableOccasions: catalog.occasions };
 }
 
-export function CatalogProvider({ children }: { children: ReactNode }) {
+export function CatalogProvider({ children, lang }: { children: ReactNode; lang: 'en' | 'ar' }) {
   const { data, isPending, isError, refetch } = useGetCatalog({
     query: { queryKey: ['/api/catalog'], staleTime: 30_000, refetchInterval: 60_000, retry: 1 },
   });
-  const arabic = document.documentElement.lang === 'ar';
+  const arabic = lang === 'ar';
   if (!data) return <main className="container"><div className="empty-state" role={isError ? 'alert' : 'status'} aria-live="polite">
     <h1 style={{ fontSize: 32 }}>{isPending
       ? (arabic ? 'نجهز لك الهدايا…' : 'Loading the gift boxes…')
