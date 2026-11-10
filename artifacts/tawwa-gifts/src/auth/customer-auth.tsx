@@ -7,6 +7,7 @@ type CustomerAuthValue = {
   loading: boolean;
   user: User | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ confirmationRequired: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -49,6 +50,12 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       if (!client) throw new Error("Authentication is not configured.");
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw error;
+    },
+    signUp: async (email, password) => {
+      if (!client) throw new Error("Authentication is not configured.");
+      const { data, error } = await client.auth.signUp({ email, password });
+      if (error) throw error;
+      return { confirmationRequired: !data.session };
     },
     signOut: async () => {
       if (!client) return;

@@ -7,6 +7,9 @@
 .account-muted strong { color: var(--ink); overflow-wrap: anywhere; }
 .account-persist { padding: 12px 14px; background: #f3eee6; border-radius: 12px; font-size: 14px; }
 .account-form { display: grid; gap: 18px; margin-top: 28px; }
+.account-mode-switch { margin: 4px 0 0; color: rgba(31,42,42,.75); text-align: center; font-size: 14px; line-height: 1.6; }
+.account-mode-switch button { min-height: 44px; margin-inline-start: 5px; padding: 4px; display: inline-flex; align-items: center; color: #175752; border: 0; border-radius: 6px; background: transparent; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.account-mode-switch button:focus-visible { outline: 3px solid rgba(194,90,48,.55); outline-offset: 2px; }
 .account-label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
 .account-input-wrap { min-height: 50px; padding-inline: 14px; display: flex; align-items: center; gap: 11px; color: #62716e; border: 1px solid rgba(31,42,42,.24); border-radius: 12px; background: white; }
 .account-input-wrap:focus-within { outline: 3px solid rgba(194,90,48,.45); outline-offset: 2px; border-color: var(--terracotta); }
