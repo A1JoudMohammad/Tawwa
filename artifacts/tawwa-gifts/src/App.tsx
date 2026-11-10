@@ -482,8 +482,9 @@ function Cart() {
     const controller = new AbortController();
     fetch(paymentApiUrl('payments/config'), { signal: controller.signal })
       .then(async response => {
-        if (!response.ok) throw new Error('Checkout is not configured.');
-        const config = await response.json() as { deliveryFee: number; currency: string; testMode: boolean };
+        const result = await response.json() as { deliveryFee?: number; currency?: string; testMode?: boolean; error?: string };
+        if (!response.ok) throw new Error(result.error || 'Checkout is not configured.');
+        const config = result as { deliveryFee: number; currency: string; testMode: boolean };
         if (!Number.isFinite(config.deliveryFee) || config.currency !== 'kwd') throw new Error('Invalid payment configuration.');
         setDeliveryFee(config.deliveryFee);
       })

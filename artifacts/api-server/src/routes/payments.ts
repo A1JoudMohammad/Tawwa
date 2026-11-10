@@ -79,7 +79,7 @@ async function getPrice(
 router.get("/payments/config", (_req, res) => {
   try {
     if (process.env.TAWWA_STRIPE_CATALOG_READY !== "true") {
-      res.status(503).json({ error: "Stripe gift pricing is not ready." });
+      res.status(503).json({ error: "Stripe cannot accept KWD payments yet. Checkout is not enabled." });
       return;
     }
     stripeConfiguration();
