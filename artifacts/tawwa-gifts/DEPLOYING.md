@@ -30,5 +30,12 @@ Keep Supabase database credentials and Stripe secret keys in the API project's
 environment settings, never in frontend `VITE_*` variables or source control.
 This routing configuration does not complete or enable Stripe checkout.
 
+Customer email/password sign-in uses Supabase Auth directly from the storefront.
+Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in this storefront Vercel
+project for Preview and Production as well; the API project's variables are not
+shared with a separate Vercel project. The publishable key is intended for
+browser use. Never use a service-role key here. Existing Supabase Auth users can
+sign in; customer sign-up is not enabled.
+
 After deployment, use the new storefront project's domain to browse the shop.
 Verify the home page, a direct visit to `/cart`, and `/api/healthz`.

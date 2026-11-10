@@ -1,4 +1,5 @@
 - [Tawwa business context](tawwa-business-context.md) — Kuwait gift boxes for busy last-minute shoppers; brand voice is calm, warm, and lightly witty.
 - [Catalog staff access](catalog-staff-access.md) — Supabase identity and RLS protect staff writes; shared external migrations must remain merge-gated.
+- [Customer sign-in scope](customer-sign-in-scope.md) — Customer email/password sessions stay separate from staff authorization and use existing accounts.
 - [Vercel Express detection](vercel-express-detection.md) — executable API bundles can still fail Vercel's literal framework-import check.
 - [Legacy cart price review](legacy-cart-price-review.md) — missing price history requires explicit review rather than inventing a previously accepted price.

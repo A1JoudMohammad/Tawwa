@@ -6,11 +6,13 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import AdminPage from '@/pages/admin';
 import { Route, Switch, useLocation, useRoute, Router as WouterRouter, Link } from 'wouter';
-import { ArrowRight, ArrowUpRight, Award, Check, ChevronLeft, ChevronRight, Gift, Heart, Menu, MessageCircle, Minus, Moon, Plus, Sparkles, Sun, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Award, Check, ChevronLeft, ChevronRight, Gift, Heart, LogOut, Menu, MessageCircle, Minus, Moon, Plus, Sparkles, Sun, UserRound, X } from 'lucide-react';
 import { testimonials, faqs } from './data/catalog.json';
 import type { CatalogProduct as Product } from '@workspace/api-client-react';
 import { CatalogProvider, useCatalog } from './data/catalog-provider';
 import { useCart, type CartItem } from './hooks/use-cart';
+import AccountPage from './pages/account';
+import { CustomerAuthProvider, useCustomerAuth } from './auth/customer-auth';
 
 const catalog = { testimonials, faqs };
 // Saved prices are review history only. All totals still use the live catalog.
@@ -139,7 +141,8 @@ function Carousel({ items }: { items: Product[] }) {
   </div>;
 }
 function Header() {
-  const { lang, setLang, cart } = useStore();
+  const { lang, setLang, cart, toast } = useStore();
+  const { user, loading: authLoading, signOut } = useCustomerAuth();
   const [open, setOpen] = useState(false);
   const [location] = useLocation();
   useEffect(() => setOpen(false), [location]);
@@ -148,12 +151,24 @@ function Header() {
     <Link href="/gift-finder">{t(lang, 'Gift Finder', 'مساعد الهدايا')}</Link>
     <a href="/#how-it-works">{t(lang, 'How it works', 'كيف نعمل')}</a>
   </>;
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast(t(lang, 'You’re signed out.', 'تم تسجيل خروجك.'));
+    } catch {
+      toast(t(lang, 'We couldn’t sign you out. Please try again.', 'تعذر تسجيل خروجك. حاول مجدداً.'));
+    }
+  };
   return <header className="topbar">
     <div className="container nav">
       <Link href="/" className="brand" aria-label="Tawwa home"><GiftMark className="brand-mark" /><Wordmark /></Link>
       <nav className="nav-links" aria-label="Main navigation">{nav}</nav>
       <div className="nav-actions">
         <button className="lang-button" onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} aria-label={lang === 'en' ? 'Switch to Arabic' : 'Switch to English'}>{lang === 'en' ? 'العربية' : 'English'}</button>
+        {authLoading ? <span className="nav-auth-loading" aria-hidden="true" /> : <>
+          <Link className="account-nav-link" href="/account" aria-label={t(lang, user ? 'Your account' : 'Sign in', user ? 'حسابك' : 'تسجيل الدخول')}><UserRound size={18} aria-hidden="true" /><span className="account-nav-label">{t(lang, user ? 'Account' : 'Sign in', user ? 'حسابي' : 'دخول')}</span></Link>
+          {user && <button className="account-signout" type="button" onClick={() => void handleSignOut()} aria-label={t(lang, 'Sign out', 'تسجيل الخروج')} title={t(lang, 'Sign out', 'تسجيل الخروج')}><LogOut size={18} aria-hidden="true" /><span className="account-signout-label">{t(lang, 'Sign out', 'خروج')}</span></button>}
+        </>}
         <Link className="icon-button" href="/cart" aria-label={`Cart, ${cart.reduce((sum, item) => sum + item.quantity, 0)} items`}><Gift size={19} />{cart.length > 0 && <span className="cart-count">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>}</Link>
         <button className="icon-button mobile-menu" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Close menu' : 'Open menu'}>{open ? <X /> : <Menu />}</button>
       </div>
@@ -177,7 +192,8 @@ function Footer() {
   </footer>;
 }
 function Intro() {
-  const [visible, setVisible] = useState(() => !localStorage.getItem('tawwa-intro-seen') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [location] = useLocation();
+  const [visible, setVisible] = useState(() => location === '/' && !localStorage.getItem('tawwa-intro-seen') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const dismiss = () => { localStorage.setItem('tawwa-intro-seen', 'yes'); setVisible(false); };
   useEffect(() => {
     if (!visible) return;
@@ -783,7 +799,8 @@ function InnerApp() {
     toast: (text, action) => setToastMessage({ text, action })
   }), [lang, cart, setCart]);
   return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><Switch>
-    <Route path="/checkout/return" component={CheckoutReturn} />
+      <Route path="/checkout/return" component={CheckoutReturn} />
+      <Route path="/account">{() => <AccountPage lang={lang} />}</Route>
     <Route><CatalogProvider lang={lang}><Switch>
       <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
     </Switch></CatalogProvider></Route>
@@ -794,6 +811,6 @@ function InnerApp() {
 }
 const queryClient = new QueryClient();
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Switch><Route path="/admin" component={AdminPage} /><Route><InnerApp /></Route></Switch></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Switch><Route path="/admin" component={AdminPage} /><Route><CustomerAuthProvider><InnerApp /></CustomerAuthProvider></Route></Switch></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }
 export default App;
