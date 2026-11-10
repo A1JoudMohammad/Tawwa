@@ -20,6 +20,8 @@ Set these variables on the API project for **Preview and Production**:
 - `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (the public catalog connection;
   use the `sb_publishable_` key, never a service-role key)
 - `SUPABASE_DATABASE_URL` (the full Supabase session-pooler PostgreSQL URI)
+- `SESSION_SECRET` (a shared random secret of at least 32 characters; keep it
+  identical across API instances)
 - `STRIPE_SECRET_KEY` (your Stripe **test** secret key, `sk_test_...`)
 - `TAWWA_DELIVERY_FEE_KWD` = `0.500`
 - `TAWWA_STOREFRONT_URL` = `https://tawwa-xvnv.vercel.app`
@@ -31,6 +33,13 @@ Keep the database URI and Stripe secret in Vercel's encrypted environment
 settings, not in code, GitHub, or chat. The publishable Stripe key is not needed
 for this hosted Stripe Checkout flow. No card details are handled by Tawwa.
 Vercel supplies `VERCEL=1`; no custom `PORT` is needed.
+
+Before deploying the checkout rate limit, apply
+`supabase/migrations/202611100002_checkout_rate_limits.sql` to the shared
+Supabase database after this change is merged. Run the migration as the database
+owner, for example in the Supabase SQL Editor; do not apply it from an
+unmerged workspace branch. Checkout requires this migration and the shared
+`SESSION_SECRET` to be present on every API instance.
 
 Before enabling checkout, run `pnpm --filter @workspace/scripts run seed:stripe-test`
 in the Replit workspace. It creates any missing Stripe products and real Prices

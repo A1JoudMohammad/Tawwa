@@ -11,6 +11,12 @@ import {
 } from "@workspace/api-zod";
 import { readCatalog } from "../lib/catalog";
 import { getStripeRuntime, stripeConfiguration } from "../lib/stripe";
+import {
+  checkoutClientAddressHash,
+  checkoutIdempotencyHash,
+  consumeCheckoutAttempt,
+  CHECKOUT_RATE_WINDOW_SECONDS,
+} from "../lib/checkout-rate-limit";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -137,6 +143,21 @@ router.post("/payments/checkout", async (req, res) => {
   }
 
   try {
+    const addressHash = checkoutClientAddressHash(
+      req.ip ?? "",
+      process.env.SESSION_SECRET ?? "",
+    );
+    const allowed = await consumeCheckoutAttempt(
+      orderDb(),
+      addressHash,
+      checkoutIdempotencyHash(idempotencyKey),
+    );
+    if (!allowed) {
+      res.setHeader("Retry-After", String(CHECKOUT_RATE_WINDOW_SECONDS));
+      res.status(429).json({ error: "Too many checkout attempts. Please wait a few minutes and try again." });
+      return;
+    }
+
     const config = stripeConfiguration();
     const deliveryFeeMinor = configuredDeliveryFee();
     const catalog = await readCatalog();

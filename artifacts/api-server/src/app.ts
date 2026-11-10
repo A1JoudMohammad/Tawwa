@@ -6,6 +6,9 @@ import { logger } from "./lib/logger";
 import stripeWebhookRouter from "./routes/stripe-webhook";
 
 const app: Express = express();
+// In Vercel, trust only the immediate platform proxy so req.ip reflects the
+// client address instead of a serverless runtime's local socket address.
+if (process.env.VERCEL === "1") app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
