@@ -42,6 +42,7 @@ function trackOccasionEvent(name: OccasionAnalyticsEvent, occasionId: string) {
 }
 const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
+const paymentApiUrl = (path: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}api/${path}`;
 const formatDeliveryDate = (value: string | undefined, lang: 'en' | 'ar') => {
   if (!value) return t(lang, 'Not selected', 'لم يتم الاختيار');
   const [year, month, day] = value.split('-').map(Number);
@@ -445,7 +446,7 @@ function ProductPage() {
            <input id="delivery-date" data-testid={`input-delivery-date-${product.id}`} type="date" min={new Date().toISOString().slice(0,10)} value={date} onChange={e => setDate(e.target.value)} />
          </div>
          <button className="button" onClick={add} data-testid={`button-add-to-cart-${product.id}`}>{t(lang, 'Add to cart', 'أضف إلى السلة')} <Gift size={18} /></button>
-         <div className="detail-benefit"><Check size={18} />{t(lang, 'Your order is confirmed before any payment. Demo checkout only.', 'تأكيد الطلب قبل الدفع. تجربة توضيحية فقط.')}</div>
+         <div className="detail-benefit"><Check size={18} />{t(lang, 'Pay securely with Stripe. Test mode is on—no real charges.', 'ادفع بأمان عبر Stripe. وضع الاختبار مفعّل ولن يتم خصم أي مبالغ حقيقية.')}</div>
        </div>
     </div>
    </div></main><div className="mobile-sticky-cta"><span className="price">{fmt(product.price)}</span><button className="button" onClick={add} data-testid={`button-add-to-cart-sticky-${product.id}`}>{t(lang, 'Add to cart', 'أضف إلى السلة')}</button></div></>;
@@ -472,10 +473,23 @@ function Cart() {
   const { products } = catalog;
   const { lang, cart, updateQty, removeItem, acknowledgePrices } = useStore();
   const [checkout, setCheckout] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [orderId, setOrderId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const checkoutAttempt = useRef<{ requestId: string; token: string; body: string } | null>(null);
   const checkoutReviewRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(paymentApiUrl('payments/config'), { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Checkout is not configured.');
+        const config = await response.json() as { deliveryFee: number; currency: string; testMode: boolean };
+        if (!Number.isFinite(config.deliveryFee) || config.currency !== 'kwd') throw new Error('Invalid payment configuration.');
+        setDeliveryFee(config.deliveryFee);
+      })
+      .catch(() => { if (!controller.signal.aborted) setError(t(lang, 'Secure checkout is temporarily unavailable.', 'الدفع الآمن غير متاح مؤقتاً.')); });
+    return () => controller.abort();
+  }, [lang]);
   useEffect(() => {
     if (!checkout) return;
     checkoutReviewRef.current?.scrollIntoView({
@@ -488,20 +502,65 @@ function Cart() {
   const priceChanges = enriched.filter(item => item.product && !samePrice(item.acknowledgedPrice, item.product.price));
   const needsPriceReview = priceChanges.length > 0;
   const reviewing = checkout && !hasUnavailable;
-  const subtotal = enriched.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0);
-  const checkoutSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const subtotal = Number(enriched.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0).toFixed(3));
+  const total = Number((subtotal + (deliveryFee ?? 0)).toFixed(3));
+  const checkoutSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setError('');
     // Guard submission too: Enter or a programmatic submit cannot bypass review.
-    if (hasUnavailable || !cart.length || needsPriceReview) return;
+    if (hasUnavailable || !cart.length || needsPriceReview || deliveryFee === null || submitting) return;
     const form = e.currentTarget;
     if (!form.reportValidity()) { setError(t(lang, 'Please check the highlighted details.', 'يرجى التأكد من البيانات المطلوبة.')); return; }
-    const id = `TW-${Math.floor(100000 + Math.random() * 899999)}`;
-    setOrderId(id); setConfirmed(true); localStorage.removeItem('tawwa-cart');
-    window.dispatchEvent(new Event('tawwa-cart-update'));
+    const formData = new FormData(form);
+    const request = {
+      items: cart.map(({ productId, quantity, message, date }) => ({
+        productId,
+        quantity,
+        ...(message ? { message } : {}),
+        ...(date ? { date } : {}),
+      })),
+      email: String(formData.get('email') ?? '').trim(),
+      name: String(formData.get('name') ?? '').trim(),
+      phone: String(formData.get('phone') ?? '').trim(),
+      governorate: String(formData.get('area') ?? ''),
+      address: String(formData.get('address') ?? '').trim(),
+      recipient: String(formData.get('recipient') ?? '').trim(),
+    };
+    const body = JSON.stringify(request);
+    if (checkoutAttempt.current?.body !== body) {
+      const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+      checkoutAttempt.current = {
+        requestId: crypto.randomUUID(),
+        token: Array.from(tokenBytes, byte => byte.toString(16).padStart(2, '0')).join(''),
+        body,
+      };
+    }
+    setSubmitting(true);
+    try {
+      const response = await fetch(paymentApiUrl('payments/checkout'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': checkoutAttempt.current.requestId,
+          'X-Order-Access-Token': checkoutAttempt.current.token,
+        },
+        body,
+      });
+      const result = await response.json() as { checkoutUrl?: string; orderId?: string; error?: string };
+      if (!response.ok || !result.checkoutUrl || !result.orderId) throw new Error(result.error || 'Secure checkout is unavailable. Your cart is saved.');
+      const destination = new URL(result.checkoutUrl);
+      if (destination.protocol !== 'https:' || destination.hostname !== 'checkout.stripe.com') {
+        throw new Error('Stripe returned an unexpected checkout address.');
+      }
+      try { sessionStorage.setItem(`tawwa-order-cart:${result.orderId}`, JSON.stringify(cart)); } catch { /* Keep the cart; payment can still proceed. */ }
+      window.location.assign(destination.toString());
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : t(lang, 'Checkout failed. Your cart is saved.', 'تعذر إتمام الطلب. سلتك محفوظة.'));
+    } finally {
+      setSubmitting(false);
+    }
   };
-  if (confirmed) return <main className="container success-panel"><div className="success-mark"><Check size={36} /></div><div className="eyebrow">{t(lang, 'ORDER CONFIRMED', 'تم تأكيد الطلب')}</div><h1 style={{ fontSize: 46 }}>{t(lang, 'Your gift is on its way.', 'توّا وتوصلك الهدية.')}</h1><p className="muted">{t(lang, 'Mock order', 'رقم الطلب التجريبي')} <strong>{orderId}</strong>. {t(lang, 'In a real order, we’d send delivery updates and tracking details. For now, consider it handled.', 'في الطلب الحقيقي سنرسل تحديثات التوصيل ورابط التتبع. الآن اعتبر الأمر منتهياً.')}</p><Link className="button" href="/">{t(lang, 'Back to Tawwa', 'العودة إلى توّا')}</Link></main>;
   if (!enriched.length) return <main className="container"><div className="empty-state"><GiftMark className="brand-mark empty-state-mark" /><div className="eyebrow">{t(lang, 'YOUR CART', 'سلتك')}</div><h1 style={{ fontSize: 42 }}>{t(lang, 'A lovely gift goes here.', 'هديتك الجميلة تبدأ من هنا.')}</h1><p className="muted">{t(lang, 'Your cart is taking a little breather. Let’s find someone a lovely surprise.', 'سلتك فارغة الآن. لنجد مفاجأة جميلة لشخص تحبه.')}</p><Link className="button" href="/occasions">{t(lang, 'Browse the boxes', 'تصفح الهدايا')}</Link></div></main>;
-  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, reviewing ? 'A few details, then we’re off.' : 'Your thoughtful picks.', reviewing ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, reviewing ? 'This is a demo checkout. No payment details or money are collected.' : 'A small note: this demo doesn’t collect payments.', reviewing ? 'هذه تجربة إتمام طلب توضيحية. لا نطلب بيانات دفع ولا نستلم أموالاً.' : 'ملاحظة: هذا المتجر التجريبي لا يستقبل أي مدفوعات.')} />
+  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, reviewing ? 'A few details, then we’re off.' : 'Your thoughtful picks.', reviewing ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, reviewing ? 'Review your gift details, then pay securely with Stripe. Test mode is on: no real charges.' : 'Your cart is saved while you shop.', reviewing ? 'راجع تفاصيل الهدية ثم ادفع بأمان عبر Stripe. وضع الاختبار مفعّل، ولن يتم خصم مبالغ حقيقية.' : 'سلتك محفوظة أثناء التسوق.')} />
   <main className="container section"><div className="checkout-grid"><section className="panel">
     {hasUnavailable && <p className="cart-unavailable-notice" role="alert" data-testid="cart-unavailable-notice">
       {t(lang, 'Some saved gifts are no longer available. Your messages and dates are still saved. Remove unavailable gifts before checkout; they are not included in the total.', 'بعض الهدايا المحفوظة لم تعد متاحة. رسائلك وتواريخك ما زالت محفوظة. أزل الهدايا غير المتاحة قبل إتمام الطلب؛ فهي غير مشمولة في الإجمالي.')}
@@ -549,10 +608,12 @@ function Cart() {
         </div>
         <div className="price">{fmt(product!.price * quantity)}</div>
       </div>)}
-      <div className="summary-line total"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
-      <div className="summary-line muted"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{t(lang, 'Calculated for your area', 'يحدد حسب المنطقة')}</span></div>
-      <button className="button" style={{ width: '100%', marginTop: 18 }} disabled={hasUnavailable} onClick={() => { if (!hasUnavailable) setCheckout(true); }} data-testid="button-continue-checkout">
-        {t(lang, 'Continue to demo checkout', 'تابع لإتمام الطلب التجريبي')} <ArrowRight size={18} />
+      <div className="summary-line"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
+      <div className="summary-line muted"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{deliveryFee === null ? t(lang, 'Loading…', 'جارٍ التحميل…') : fmt(deliveryFee)}</span></div>
+      <div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(total)}</span></div>
+      {deliveryFee === null && <p className="cart-unavailable-notice" role="status">{error || t(lang, 'Checking secure checkout availability…', 'جارٍ التحقق من توفر الدفع الآمن…')}</p>}
+      <button className="button" style={{ width: '100%', marginTop: 18 }} disabled={hasUnavailable || deliveryFee === null} onClick={() => { if (!hasUnavailable && deliveryFee !== null) setCheckout(true); }} data-testid="button-continue-checkout">
+        {t(lang, 'Continue to secure checkout', 'تابع إلى الدفع الآمن')} <ArrowRight size={18} />
       </button>
     </> : <>
       <section ref={checkoutReviewRef} className="checkout-review" aria-labelledby="checkout-review-title" data-testid="checkout-gift-review">
@@ -571,17 +632,117 @@ function Cart() {
       <form onSubmit={checkoutSubmit} noValidate>
         <h2 style={{ fontSize: 27 }}>{t(lang, 'Where should it land?', 'إلى أين نرسلها؟')}</h2>
         {error && <p role="alert" className="field-error">{error}</p>}
+        <div className="field"><label htmlFor="checkout-email">{t(lang, 'Email for your receipt', 'البريد الإلكتروني للإيصال')} *</label><input id="checkout-email" name="email" type="email" required autoComplete="email" /></div>
         <div className="field"><label htmlFor="checkout-name">{t(lang, 'Your name', 'الاسم')} *</label><input id="checkout-name" name="name" required minLength={2} autoComplete="name" /></div>
         <div className="field"><label htmlFor="checkout-phone">{t(lang, 'Mobile number', 'رقم الهاتف')} *</label><input id="checkout-phone" name="phone" required type="tel" pattern="[+0-9 -]{8,16}" autoComplete="tel" placeholder="+965 5XXX XXXX" /></div>
         <div className="field"><label htmlFor="checkout-area">{t(lang, 'Governorate', 'المحافظة')} *</label><select id="checkout-area" name="area" required defaultValue=""><option value="" disabled>{t(lang, 'Choose an area', 'اختر المحافظة')}</option>{catalog.governorates.map(area => <option key={area}>{area}</option>)}</select></div>
         <div className="field"><label htmlFor="checkout-address">{t(lang, 'Area / block / street', 'المنطقة / القطعة / الشارع')} *</label><input id="checkout-address" name="address" required autoComplete="street-address" /></div>
         <div className="field"><label htmlFor="checkout-recipient">{t(lang, 'Recipient name (if different)', 'اسم المستلم (إن اختلف)')}</label><input id="checkout-recipient" name="recipient" /></div>
-        <button className="button" type="submit" disabled={needsPriceReview} data-testid="button-confirm-order">{t(lang, 'Confirm demo order', 'تأكيد الطلب التجريبي')} <Check size={18} /></button>
+        <div className="summary-line"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
+        <div className="summary-line"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{deliveryFee === null ? '—' : fmt(deliveryFee)}</span></div>
+        <div className="summary-line total"><span>{t(lang, 'Total', 'الإجمالي')}</span><span>{fmt(total)}</span></div>
+        <button className="button" type="submit" disabled={needsPriceReview || submitting || deliveryFee === null} data-testid="button-confirm-order">{submitting ? t(lang, 'Opening secure checkout…', 'جارٍ فتح الدفع الآمن…') : t(lang, 'Pay securely with Stripe', 'ادفع بأمان عبر Stripe')} <Check size={18} /></button>
         <button className="remove" type="button" onClick={() => setCheckout(false)}>{t(lang, 'Back to cart', 'العودة للسلة')}</button>
-        <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>{t(lang, 'Demo only. No card details, payment, or backend are connected.', 'تجربة فقط. لا توجد بيانات بطاقة أو دفع أو خادم متصل.')}</p>
+        <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>{t(lang, 'Stripe test mode is on. No real charge will be made.', 'وضع اختبار Stripe مفعّل. لن يتم خصم أي مبلغ حقيقي.')}</p>
       </form>
     </>}
-  </section><aside className="panel"><h3>{t(lang, 'A little reassurance', 'لراحة بالك')}</h3><p className="detail-benefit"><Check size={18} />{t(lang, 'Order by 3 PM for delivery tonight', 'اطلب قبل ٣ مساءً للتوصيل الليلة')}</p><p className="detail-benefit"><Check size={18} />{t(lang, 'Delivery to all six Kuwait governorates', 'توصيل إلى محافظات الكويت الست')}</p><p className="detail-benefit"><Check size={18} />{t(lang, 'Satisfaction promise: we’ll make it right', 'وعد الرضا: سنعالج أي مشكلة')}</p><div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(subtotal)}</span></div></aside></div></main></>;
+  </section><aside className="panel"><h3>{t(lang, 'A little reassurance', 'لراحة بالك')}</h3><p className="detail-benefit"><Check size={18} />{t(lang, 'Order by 3 PM for delivery tonight', 'اطلب قبل ٣ مساءً للتوصيل الليلة')}</p><p className="detail-benefit"><Check size={18} />{t(lang, 'Delivery to all six Kuwait governorates', 'توصيل إلى محافظات الكويت الست')}</p><p className="detail-benefit"><Check size={18} />{t(lang, 'Satisfaction promise: we’ll make it right', 'وعد الرضا: سنعالج أي مشكلة')}</p><div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(total)}</span></div></aside></div></main></>;
+}
+type PaymentOrderView = {
+  orderId: string;
+  status: 'pending' | 'paid' | 'failed' | 'expired';
+  currency: 'kwd';
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  items: { productId: string; name: string; nameAr: string; quantity: number; unitPrice: number; message: string; date: string }[];
+};
+function CheckoutReturn() {
+  const { lang } = useStore();
+  const [order, setOrder] = useState<PaymentOrderView | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    const accessToken = params.get('access_token');
+    const sessionId = params.get('session_id');
+    if (!orderId || !accessToken || !sessionId) {
+      setError(t(lang, 'This payment link is incomplete. Your cart is still saved.', 'رابط الدفع غير مكتمل. سلتك ما زالت محفوظة.'));
+      return;
+    }
+    let active = true;
+    let attempts = 0;
+    let timer: number | undefined;
+    const checkPayment = async () => {
+      try {
+        const response = await fetch(paymentApiUrl('payments/order-status'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, accessToken, sessionId }),
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Payment status could not be checked.');
+        const result = await response.json() as PaymentOrderView;
+        if (!active) return;
+        setOrder(result);
+        if (result.status === 'paid') {
+          try {
+            const snapshotText = sessionStorage.getItem(`tawwa-order-cart:${result.orderId}`);
+            const purchased = snapshotText ? JSON.parse(snapshotText) as CartItem[] : [];
+            const saved = JSON.parse(localStorage.getItem('tawwa-cart') || '[]') as CartItem[];
+            const remaining = [...saved];
+            for (const item of purchased) {
+              const index = remaining.findIndex(current =>
+                current.productId === item.productId &&
+                (current.message ?? '') === (item.message ?? '') &&
+                (current.date ?? '') === (item.date ?? '')
+              );
+              if (index < 0) continue;
+              if (remaining[index].quantity <= item.quantity) remaining.splice(index, 1);
+              else remaining[index] = { ...remaining[index], quantity: remaining[index].quantity - item.quantity };
+            }
+            localStorage.setItem('tawwa-cart', JSON.stringify(remaining));
+            sessionStorage.removeItem(`tawwa-order-cart:${result.orderId}`);
+            window.dispatchEvent(new Event('tawwa-cart-update'));
+          } catch {
+            // A storage restriction must not hide a verified successful payment.
+          }
+          return;
+        }
+        if (result.status === 'pending' && attempts++ < 18) timer = window.setTimeout(checkPayment, 2500);
+      } catch {
+        if (!active) return;
+        setError(t(lang, 'We couldn’t confirm the payment yet. Your gift details are still saved. Refresh to check again.', 'لم نتمكن من تأكيد الدفع بعد. تفاصيل الهدية ما زالت محفوظة. حدّث الصفحة للتحقق مجدداً.'));
+      }
+    };
+    void checkPayment();
+    return () => { active = false; if (timer) window.clearTimeout(timer); };
+  }, [lang]);
+  const paid = order?.status === 'paid';
+  return <main className="container success-panel" aria-live="polite">
+    <div className="success-mark">{paid ? <Check size={36} /> : <GiftMark decorative />}</div>
+    <div className="eyebrow">{t(lang, paid ? 'PAYMENT CONFIRMED' : 'VERIFYING PAYMENT', paid ? 'تم تأكيد الدفع' : 'جارٍ التحقق من الدفع')}</div>
+    <h1 style={{ fontSize: 42 }}>{paid
+      ? t(lang, 'Your gift is on its way.', 'توّا وتوصلك الهدية.')
+      : order?.status === 'failed' || order?.status === 'expired'
+        ? t(lang, 'Payment wasn’t completed.', 'لم يكتمل الدفع.')
+        : t(lang, 'Checking your payment…', 'جارٍ التحقق من الدفع…')}</h1>
+    <p className="muted">{error || (paid
+      ? t(lang, 'Your payment is confirmed. We saved your card message and delivery date with the order.', 'تم تأكيد الدفع. حفظنا رسالة البطاقة وموعد التوصيل مع الطلب.')
+      : order?.status === 'failed' || order?.status === 'expired'
+        ? t(lang, 'Your cart is unchanged. Return to it to try again.', 'سلتك كما هي. عد إليها للمحاولة مجدداً.')
+        : t(lang, 'Your cart stays saved until Stripe confirms payment.', 'ستبقى سلتك محفوظة حتى يؤكد Stripe الدفع.'))}</p>
+    {order && <section className="panel" style={{ textAlign: 'start', marginTop: 24 }}>
+      <h2>{t(lang, 'Order details', 'تفاصيل الطلب')}</h2>
+      {order.items.map(item => <article className="checkout-review-item" key={item.productId}>
+        <div className="checkout-review-heading"><h3>{t(lang, item.name, item.nameAr)} × {item.quantity}</h3><span>{fmt(item.unitPrice * item.quantity)}</span></div>
+        <GiftDetails message={item.message} date={item.date} productId={`order-${item.productId}`} />
+      </article>)}
+      <div className="summary-line"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{fmt(order.deliveryFee)}</span></div>
+      <div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(order.total)}</span></div>
+    </section>}
+    <Link className="button" href={paid ? '/' : '/cart'}>{t(lang, paid ? 'Back to Tawwa' : 'Return to cart', paid ? 'العودة إلى توّا' : 'العودة إلى السلة')}</Link>
+  </main>;
 }
 function FAQ() {
   const { lang } = useStore();
@@ -620,9 +781,12 @@ function InnerApp() {
     removeItem: id => setCart(old => old.filter(i => i.productId !== id)),
     toast: (text, action) => setToastMessage({ text, action })
   }), [lang, cart, setCart]);
-  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><CatalogProvider lang={lang}><Switch>
-    <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
-  </Switch></CatalogProvider></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
+  return <Store.Provider value={store}><div className="app-shell"><Header /><RoutedErrorBoundary><Switch>
+    <Route path="/checkout/return" component={CheckoutReturn} />
+    <Route><CatalogProvider lang={lang}><Switch>
+      <Route path="/" component={Home} /><Route path="/occasions" component={Shop} /><Route path="/product/:id" component={ProductPage} /><Route path="/gift-finder" component={GiftFinder} /><Route path="/cart" component={Cart} /><Route path="/faq" component={FAQ} /><Route path="/contact" component={Contact} /><Route component={NotFound} />
+    </Switch></CatalogProvider></Route>
+  </Switch></RoutedErrorBoundary><Footer /><Intro />{toastMessage && <div className="toast-message" role="status" aria-live="polite" data-testid="status-toast">
     <span>{toastMessage.text}</span>
     {toastMessage.action && <Link className="toast-action" href={toastMessage.action.href} data-testid="link-toast-action">{toastMessage.action.label}</Link>}
   </div>}</div></Store.Provider>;

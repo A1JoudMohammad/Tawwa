@@ -24,3 +24,6 @@ timeoutMs = 20000
 [userenv.shared]
 SUPABASE_URL = "https://ngcrdkkscymxvpcxvoyn.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_d0Jj61r7lfUXe8n6WPRFWw_33_TsHSu"
+TAWWA_DELIVERY_FEE_KWD = "0.500"
+TAWWA_STOREFRONT_URL = "https://tawwa-xvnv.vercel.app"
+TAWWA_API_URL = "https://tawwa-api-server-17ej-ashen.vercel.app"

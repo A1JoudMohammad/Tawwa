@@ -25,7 +25,12 @@ import type {
   AdminProduct,
   Catalog,
   CatalogError,
+  CheckoutInput,
+  CheckoutSession,
   HealthStatus,
+  PaymentConfig,
+  PaymentOrder,
+  PaymentOrderLookupInput,
   StaffCredentials,
   StaffSession
 } from './api.schemas';
@@ -56,6 +61,241 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetTawwaPaymentConfigUrl = () => {
+
+
+
+
+  return `/api/payments/config`
+}
+
+export const getTawwaPaymentConfig = async ( options?: Parameters<typeof customFetch>[1]): Promise<PaymentConfig> => {
+
+  return customFetch<PaymentConfig>(getGetTawwaPaymentConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTawwaPaymentConfigQueryKey = () => {
+    return [
+    `/api/payments/config`
+    ] as const;
+    }
+
+
+export const getGetTawwaPaymentConfigQueryOptions = <TData = Awaited<ReturnType<typeof getTawwaPaymentConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTawwaPaymentConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTawwaPaymentConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTawwaPaymentConfig>>> = ({ signal }) => getTawwaPaymentConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTawwaPaymentConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTawwaPaymentConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getTawwaPaymentConfig>>>
+export type GetTawwaPaymentConfigQueryError = ErrorType<unknown>
+
+
+
+export function useGetTawwaPaymentConfig<TData = Awaited<ReturnType<typeof getTawwaPaymentConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTawwaPaymentConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTawwaPaymentConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTawwaCheckoutUrl = () => {
+
+
+
+
+  return `/api/payments/checkout`
+}
+
+export const createTawwaCheckout = async (checkoutInput: CheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CheckoutSession>(getCreateTawwaCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(checkoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTawwaCheckoutMutationKey = () => ['createTawwaCheckout'] as const;
+
+export const getCreateTawwaCheckoutMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTawwaCheckout>>, TError,CreateTawwaCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTawwaCheckout>>, TError,CreateTawwaCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateTawwaCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTawwaCheckout>>, CreateTawwaCheckoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTawwaCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTawwaCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createTawwaCheckout>>>
+    export type CreateTawwaCheckoutMutationBody = BodyType<CheckoutInput>
+    export type CreateTawwaCheckoutMutationError = ErrorType<void>
+    export type CreateTawwaCheckoutMutationVariables = {data: BodyType<CheckoutInput>}
+
+    export const useCreateTawwaCheckout = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTawwaCheckout>>, TError,CreateTawwaCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTawwaCheckout>>,
+        TError,
+        CreateTawwaCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTawwaCheckoutMutationOptions(options));
+    }
+
+export const getGetTawwaPaymentOrderUrl = () => {
+
+
+
+
+  return `/api/payments/order-status`
+}
+
+export const getTawwaPaymentOrder = async (paymentOrderLookupInput: PaymentOrderLookupInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentOrder> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentOrder>(getGetTawwaPaymentOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentOrderLookupInput)
+  }
+);}
+
+
+
+
+
+export const getGetTawwaPaymentOrderMutationKey = () => ['getTawwaPaymentOrder'] as const;
+
+export const getGetTawwaPaymentOrderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getTawwaPaymentOrder>>, TError,GetTawwaPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getTawwaPaymentOrder>>, TError,GetTawwaPaymentOrderMutationVariables, TContext> => {
+
+const mutationKey = getGetTawwaPaymentOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getTawwaPaymentOrder>>, GetTawwaPaymentOrderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  getTawwaPaymentOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetTawwaPaymentOrderMutationResult = NonNullable<Awaited<ReturnType<typeof getTawwaPaymentOrder>>>
+    export type GetTawwaPaymentOrderMutationBody = BodyType<PaymentOrderLookupInput>
+    export type GetTawwaPaymentOrderMutationError = ErrorType<void>
+    export type GetTawwaPaymentOrderMutationVariables = {data: BodyType<PaymentOrderLookupInput>}
+
+    export const useGetTawwaPaymentOrder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getTawwaPaymentOrder>>, TError,GetTawwaPaymentOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getTawwaPaymentOrder>>,
+        TError,
+        GetTawwaPaymentOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGetTawwaPaymentOrderMutationOptions(options));
+    }
 
 export const getGetAdminSessionUrl = () => {
 

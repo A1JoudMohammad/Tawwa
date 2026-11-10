@@ -8,6 +8,115 @@
 import * as zod from 'zod';
 
 
+export const getTawwaPaymentConfigResponseDeliveryFeeMin = 0;
+
+
+
+export const GetTawwaPaymentConfigResponse = zod.object({
+  "deliveryFee": zod.number().min(getTawwaPaymentConfigResponseDeliveryFeeMin),
+  "currency": zod.enum(['kwd']),
+  "testMode": zod.boolean()
+})
+
+
+export const createTawwaCheckoutHeaderIdempotencyKeyMin = 16;
+export const createTawwaCheckoutHeaderIdempotencyKeyMax = 100;
+
+export const createTawwaCheckoutHeaderXOrderAccessTokenMin = 32;
+export const createTawwaCheckoutHeaderXOrderAccessTokenMax = 128;
+
+
+
+export const CreateTawwaCheckoutHeader = zod.object({
+  "Idempotency-Key": zod.string().min(createTawwaCheckoutHeaderIdempotencyKeyMin).max(createTawwaCheckoutHeaderIdempotencyKeyMax),
+  "X-Order-Access-Token": zod.string().min(createTawwaCheckoutHeaderXOrderAccessTokenMin).max(createTawwaCheckoutHeaderXOrderAccessTokenMax)
+})
+
+export const createTawwaCheckoutBodyItemsItemProductIdMax = 80;
+
+
+export const createTawwaCheckoutBodyItemsItemProductIdRegExp = new RegExp('^[a-z0-9]+(-[a-z0-9]+)*$');
+export const createTawwaCheckoutBodyItemsItemQuantityMax = 10;
+
+export const createTawwaCheckoutBodyItemsItemMessageMax = 300;
+
+export const createTawwaCheckoutBodyItemsMax = 10;
+
+export const createTawwaCheckoutBodyEmailMax = 254;
+
+export const createTawwaCheckoutBodyNameMin = 2;
+export const createTawwaCheckoutBodyNameMax = 160;
+
+export const createTawwaCheckoutBodyPhoneMin = 8;
+export const createTawwaCheckoutBodyPhoneMax = 24;
+
+
+export const createTawwaCheckoutBodyPhoneRegExp = new RegExp('^[+0-9 ()-]+$');
+export const createTawwaCheckoutBodyGovernorateMax = 100;
+
+export const createTawwaCheckoutBodyAddressMin = 4;
+export const createTawwaCheckoutBodyAddressMax = 500;
+
+export const createTawwaCheckoutBodyRecipientMax = 160;
+
+
+
+export const CreateTawwaCheckoutBody = zod.object({
+  "items": zod.array(zod.object({
+  "productId": zod.string().min(1).max(createTawwaCheckoutBodyItemsItemProductIdMax).regex(createTawwaCheckoutBodyItemsItemProductIdRegExp),
+  "quantity": zod.number().int().min(1).max(createTawwaCheckoutBodyItemsItemQuantityMax),
+  "message": zod.string().max(createTawwaCheckoutBodyItemsItemMessageMax).optional(),
+  "date": zod.coerce.date().optional()
+})).min(1).max(createTawwaCheckoutBodyItemsMax),
+  "email": zod.string().email().max(createTawwaCheckoutBodyEmailMax),
+  "name": zod.string().min(createTawwaCheckoutBodyNameMin).max(createTawwaCheckoutBodyNameMax),
+  "phone": zod.string().min(createTawwaCheckoutBodyPhoneMin).max(createTawwaCheckoutBodyPhoneMax).regex(createTawwaCheckoutBodyPhoneRegExp),
+  "governorate": zod.string().min(1).max(createTawwaCheckoutBodyGovernorateMax),
+  "address": zod.string().min(createTawwaCheckoutBodyAddressMin).max(createTawwaCheckoutBodyAddressMax),
+  "recipient": zod.string().max(createTawwaCheckoutBodyRecipientMax).optional()
+})
+
+export const CreateTawwaCheckoutResponse = zod.object({
+  "checkoutUrl": zod.string().url(),
+  "orderId": zod.string().uuid(),
+  "deliveryFee": zod.number(),
+  "total": zod.number()
+})
+
+
+export const getTawwaPaymentOrderBodySessionIdMin = 10;
+export const getTawwaPaymentOrderBodySessionIdMax = 255;
+
+export const getTawwaPaymentOrderBodyAccessTokenMin = 32;
+export const getTawwaPaymentOrderBodyAccessTokenMax = 128;
+
+
+
+export const GetTawwaPaymentOrderBody = zod.object({
+  "orderId": zod.string().uuid(),
+  "sessionId": zod.string().min(getTawwaPaymentOrderBodySessionIdMin).max(getTawwaPaymentOrderBodySessionIdMax),
+  "accessToken": zod.string().min(getTawwaPaymentOrderBodyAccessTokenMin).max(getTawwaPaymentOrderBodyAccessTokenMax)
+})
+
+export const GetTawwaPaymentOrderResponse = zod.object({
+  "orderId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'paid', 'failed', 'expired']),
+  "currency": zod.enum(['kwd']),
+  "subtotal": zod.number(),
+  "deliveryFee": zod.number(),
+  "total": zod.number(),
+  "items": zod.array(zod.object({
+  "productId": zod.string(),
+  "name": zod.string(),
+  "nameAr": zod.string(),
+  "quantity": zod.number().int(),
+  "unitPrice": zod.number(),
+  "message": zod.string(),
+  "date": zod.string()
+}))
+})
+
+
 export const GetAdminSessionResponse = zod.object({
   "authenticated": zod.boolean(),
   "configured": zod.boolean()

@@ -32,6 +32,10 @@ async function buildAll() {
       // in the output. Keep Express external so esbuild preserves that import;
       // Express is declared as a runtime dependency and traced by Vercel.
       "express",
+      "stripe",
+      // stripe-replit-sync loads its versioned SQL migrations from package files.
+      // Keep the package external so Vercel can trace those runtime assets.
+      "stripe-replit-sync",
       "*.node",
       "sharp",
       "better-sqlite3",

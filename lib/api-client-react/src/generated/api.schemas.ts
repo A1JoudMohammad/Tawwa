@@ -5,6 +5,128 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CheckoutItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     * @pattern ^[a-z0-9]+(-[a-z0-9]+)*$
+     */
+  productId: string;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  quantity: number;
+  /** @maxLength 300 */
+  message?: string;
+  date?: string;
+}
+
+export interface CheckoutInput {
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  items: CheckoutItemInput[];
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /**
+     * @minLength 8
+     * @maxLength 24
+     * @pattern ^[+0-9 ()-]+$
+     */
+  phone: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  governorate: string;
+  /**
+     * @minLength 4
+     * @maxLength 500
+     */
+  address: string;
+  /** @maxLength 160 */
+  recipient?: string;
+}
+
+export interface CheckoutSession {
+  checkoutUrl: string;
+  orderId: string;
+  deliveryFee: number;
+  total: number;
+}
+
+export type PaymentConfigCurrency = typeof PaymentConfigCurrency[keyof typeof PaymentConfigCurrency];
+
+
+export const PaymentConfigCurrency = {
+  kwd: 'kwd',
+} as const;
+
+export interface PaymentConfig {
+  /** @minimum 0 */
+  deliveryFee: number;
+  currency: PaymentConfigCurrency;
+  testMode: boolean;
+}
+
+export interface PaymentOrderLookupInput {
+  orderId: string;
+  /**
+     * @minLength 10
+     * @maxLength 255
+     */
+  sessionId: string;
+  /**
+     * @minLength 32
+     * @maxLength 128
+     */
+  accessToken: string;
+}
+
+export interface PaymentOrderItem {
+  productId: string;
+  name: string;
+  nameAr: string;
+  quantity: number;
+  unitPrice: number;
+  message: string;
+  date: string;
+}
+
+export type PaymentOrderStatus = typeof PaymentOrderStatus[keyof typeof PaymentOrderStatus];
+
+
+export const PaymentOrderStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+  expired: 'expired',
+} as const;
+
+export type PaymentOrderCurrency = typeof PaymentOrderCurrency[keyof typeof PaymentOrderCurrency];
+
+
+export const PaymentOrderCurrency = {
+  kwd: 'kwd',
+} as const;
+
+export interface PaymentOrder {
+  orderId: string;
+  status: PaymentOrderStatus;
+  currency: PaymentOrderCurrency;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  items: PaymentOrderItem[];
+}
+
 export interface StaffCredentials {
   /** @maxLength 254 */
   email: string;
