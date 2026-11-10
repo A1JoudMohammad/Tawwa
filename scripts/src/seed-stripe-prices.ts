@@ -101,7 +101,7 @@ async function main() {
 }
 
 main().catch((caught: unknown) => {
-  const error = caught as { type?: string; code?: string; statusCode?: number };
+  const error = caught as { type?: string; code?: string; param?: string; statusCode?: number };
   console.error(JSON.stringify({
     error: "Stripe test catalog setup failed.",
     stage,

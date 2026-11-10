@@ -87,15 +87,11 @@ export const CreateTawwaCheckoutResponse = zod.object({
 export const getTawwaPaymentOrderBodySessionIdMin = 10;
 export const getTawwaPaymentOrderBodySessionIdMax = 255;
 
-export const getTawwaPaymentOrderBodyAccessTokenMin = 32;
-export const getTawwaPaymentOrderBodyAccessTokenMax = 128;
-
 
 
 export const GetTawwaPaymentOrderBody = zod.object({
   "orderId": zod.string().uuid(),
-  "sessionId": zod.string().min(getTawwaPaymentOrderBodySessionIdMin).max(getTawwaPaymentOrderBodySessionIdMax),
-  "accessToken": zod.string().min(getTawwaPaymentOrderBodyAccessTokenMin).max(getTawwaPaymentOrderBodyAccessTokenMax)
+  "sessionId": zod.string().min(getTawwaPaymentOrderBodySessionIdMin).max(getTawwaPaymentOrderBodySessionIdMax)
 })
 
 export const GetTawwaPaymentOrderResponse = zod.object({

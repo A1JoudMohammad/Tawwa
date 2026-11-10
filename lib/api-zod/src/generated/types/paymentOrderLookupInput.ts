@@ -13,9 +13,4 @@ export interface PaymentOrderLookupInput {
      * @maxLength 255
      */
   sessionId: string;
-  /**
-     * @minLength 32
-     * @maxLength 128
-     */
-  accessToken: string;
 }

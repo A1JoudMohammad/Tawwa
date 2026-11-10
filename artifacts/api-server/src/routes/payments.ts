@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter } from "express";
 import Stripe from "stripe";
 import pg from "pg";
+import cookieParser from "cookie-parser";
 import {
   CreateTawwaCheckoutBody,
   CreateTawwaCheckoutResponse,
@@ -15,6 +16,34 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 const { Pool } = pg;
 let pool: pg.Pool | undefined;
+const orderCookie = (orderId: string) => `tawwa_order_${orderId}`;
+const orderCookieOptions = (req: import("express").Request) => ({
+  httpOnly: true,
+  secure: req.secure || req.get("x-forwarded-proto") === "https" || process.env.VERCEL === "1",
+  sameSite: "lax" as const,
+  path: "/api/payments/order-status",
+  maxAge: 24 * 60 * 60 * 1000,
+});
+
+router.use(cookieParser());
+
+function hasTrustedStorefrontOrigin(req: import("express").Request) {
+  const origin = req.get("origin");
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    const allowed = new Set([stripeConfiguration().storefrontUrl]);
+    if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
+    if (process.env.NODE_ENV !== "production") {
+      for (const host of [process.env.REPLIT_DEV_DOMAIN, ...(process.env.REPLIT_DOMAINS ?? "").split(",")]) {
+        if (host?.trim()) allowed.add(`https://${host.trim()}`);
+      }
+    }
+    return parsed.protocol === "https:" && parsed.origin === origin && allowed.has(parsed.origin);
+  } catch {
+    return false;
+  }
+}
 function orderDb() {
   const { databaseUrl } = stripeConfiguration();
   pool ??= new Pool({ connectionString: databaseUrl, max: 2, connectionTimeoutMillis: 8000, idleTimeoutMillis: 10_000 });
@@ -91,6 +120,10 @@ router.get("/payments/config", (_req, res) => {
 });
 
 router.post("/payments/checkout", async (req, res) => {
+  if (!hasTrustedStorefrontOrigin(req)) {
+    res.status(403).json({ error: "Checkout requests must come from the Tawwa storefront." });
+    return;
+  }
   const parsed = CreateTawwaCheckoutBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Please check the checkout details and try again." });
@@ -192,6 +225,7 @@ router.post("/payments/checkout", async (req, res) => {
     if (order.stripe_checkout_session_id) {
       const session = await stripeRuntime.stripe.checkout.sessions.retrieve(order.stripe_checkout_session_id);
       if (session.url) {
+        res.cookie(orderCookie(order.id), accessToken, orderCookieOptions(req));
         res.json(CreateTawwaCheckoutResponse.parse({
           checkoutUrl: session.url,
           orderId: order.id,
@@ -205,7 +239,6 @@ router.post("/payments/checkout", async (req, res) => {
     const successUrl =
       `${config.storefrontUrl}/checkout/return` +
       `?order_id=${encodeURIComponent(order.id)}` +
-      `&access_token=${encodeURIComponent(accessToken)}` +
       "&session_id={CHECKOUT_SESSION_ID}";
     const cancelUrl = new URL("/cart?payment=cancelled", config.storefrontUrl);
     const session = await stripeRuntime.stripe.checkout.sessions.create({
@@ -224,6 +257,7 @@ router.post("/payments/checkout", async (req, res) => {
       [order.id, session.id],
     );
     if (!session.url) throw new Error("Stripe did not return a hosted checkout URL");
+    res.cookie(orderCookie(order.id), accessToken, orderCookieOptions(req));
     res.json(CreateTawwaCheckoutResponse.parse({
       checkoutUrl: session.url,
       orderId: order.id,
@@ -241,6 +275,10 @@ router.post("/payments/checkout", async (req, res) => {
 });
 
 router.post("/payments/order-status", async (req, res) => {
+  if (!hasTrustedStorefrontOrigin(req)) {
+    res.status(403).json({ error: "Order access must come from the Tawwa storefront." });
+    return;
+  }
   const parsed = GetTawwaPaymentOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payment status request." });
@@ -256,7 +294,8 @@ router.post("/payments/order-status", async (req, res) => {
       [parsed.data.orderId],
     );
     const order = result.rows[0];
-    if (!order || !accessTokenMatches(order.order_access_token_hash, parsed.data.accessToken)) {
+    const accessToken = req.cookies?.[orderCookie(parsed.data.orderId)];
+    if (!order || !accessToken || !accessTokenMatches(order.order_access_token_hash, accessToken)) {
       res.status(404).json({ error: "Order not found." });
       return;
     }
@@ -286,6 +325,7 @@ router.post("/payments/order-status", async (req, res) => {
     const currentStatus = status === "paid" ? "paid" : status;
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Referrer-Policy", "no-referrer");
+    if (status !== "pending") res.clearCookie(orderCookie(order.id), orderCookieOptions(req));
     res.json(GetTawwaPaymentOrderResponse.parse({
       orderId: order.id,
       status: currentStatus,

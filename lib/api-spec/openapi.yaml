@@ -45,6 +45,8 @@ paths:
               schema: { $ref: "#/components/schemas/CheckoutSession" }
         "400":
           description: Invalid cart or delivery details
+        "403":
+          description: Request did not come from the storefront
         "409":
           description: Cart changed or idempotency key reused
         "503":
@@ -65,6 +67,8 @@ paths:
               schema: { $ref: "#/components/schemas/PaymentOrder" }
         "404":
           description: Order not found
+        "403":
+          description: Request did not come from the storefront
         "503":
           description: Payments are not configured
   /admin/session:
@@ -282,11 +286,10 @@ components:
         testMode: { type: boolean }
     PaymentOrderLookupInput:
       type: object
-      required: [orderId, sessionId, accessToken]
+      required: [orderId, sessionId]
       properties:
         orderId: { type: string, format: uuid }
         sessionId: { type: string, minLength: 10, maxLength: 255 }
-        accessToken: { type: string, minLength: 32, maxLength: 128 }
     PaymentOrderItem:
       type: object
       required: [productId, name, nameAr, quantity, unitPrice, message, date]

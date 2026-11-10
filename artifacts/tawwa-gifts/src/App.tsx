@@ -665,9 +665,8 @@ function CheckoutReturn() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id');
-    const accessToken = params.get('access_token');
     const sessionId = params.get('session_id');
-    if (!orderId || !accessToken || !sessionId) {
+    if (!orderId || !sessionId) {
       setError(t(lang, 'This payment link is incomplete. Your cart is still saved.', 'رابط الدفع غير مكتمل. سلتك ما زالت محفوظة.'));
       return;
     }
@@ -679,7 +678,8 @@ function CheckoutReturn() {
         const response = await fetch(paymentApiUrl('payments/order-status'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, accessToken, sessionId }),
+          credentials: 'same-origin',
+          body: JSON.stringify({ orderId, sessionId }),
           cache: 'no-store',
         });
         if (!response.ok) throw new Error('Payment status could not be checked.');
