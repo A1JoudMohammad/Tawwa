@@ -11,5 +11,8 @@ export interface PaymentConfig {
   /** @minimum 0 */
   deliveryFee: number;
   currency: PaymentConfigCurrency;
+  /** @exclusiveMinimum 0 */
+  kwdToChargeRate: number;
+  kwdToChargeRateDate: Date;
   testMode: boolean;
 }

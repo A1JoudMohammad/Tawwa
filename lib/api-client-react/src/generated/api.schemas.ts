@@ -66,13 +66,16 @@ export type PaymentConfigCurrency = typeof PaymentConfigCurrency[keyof typeof Pa
 
 
 export const PaymentConfigCurrency = {
-  kwd: 'kwd',
+  usd: 'usd',
 } as const;
 
 export interface PaymentConfig {
   /** @minimum 0 */
   deliveryFee: number;
   currency: PaymentConfigCurrency;
+  /** @exclusiveMinimum 0 */
+  kwdToChargeRate: number;
+  kwdToChargeRateDate: string;
   testMode: boolean;
 }
 
@@ -112,6 +115,13 @@ export const PaymentOrderCurrency = {
   kwd: 'kwd',
 } as const;
 
+export type PaymentOrderChargeCurrency = typeof PaymentOrderChargeCurrency[keyof typeof PaymentOrderChargeCurrency];
+
+
+export const PaymentOrderChargeCurrency = {
+  usd: 'usd',
+} as const;
+
 export interface PaymentOrder {
   orderId: string;
   status: PaymentOrderStatus;
@@ -119,6 +129,8 @@ export interface PaymentOrder {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  chargeCurrency: PaymentOrderChargeCurrency;
+  chargeTotal: number;
   items: PaymentOrderItem[];
 }
 

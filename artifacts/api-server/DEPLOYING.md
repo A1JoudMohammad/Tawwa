@@ -23,6 +23,9 @@ Set these variables on the API project for **Preview and Production**:
 - `SESSION_SECRET` (a shared random secret of at least 32 characters; keep it
   identical across API instances)
 - `STRIPE_SECRET_KEY` (your Stripe **test** secret key, `sk_test_...`)
+- `TAWWA_STRIPE_CURRENCY` = `usd`
+- `TAWWA_KWD_TO_USD_RATE` = `3.221725`
+- `TAWWA_KWD_TO_USD_RATE_DATE` = `2026-11-11`
 - `TAWWA_DELIVERY_FEE_KWD` = `0.500`
 - `TAWWA_STOREFRONT_URL` = `https://tawwa-xvnv.vercel.app`
 - `TAWWA_API_URL` = `https://tawwa-api-server-17ej-ashen.vercel.app`
@@ -30,8 +33,9 @@ Set these variables on the API project for **Preview and Production**:
   script completes successfully.
 
 Keep the database URI and Stripe secret in Vercel's encrypted environment
-settings, not in code, GitHub, or chat. The publishable Stripe key is not needed
-for this hosted Stripe Checkout flow. No card details are handled by Tawwa.
+settings, not in code, GitHub, or chat. Replit secrets do not configure this
+separate Vercel API project. The publishable Stripe key is not needed for this
+hosted Stripe Checkout flow. No card details are handled by Tawwa.
 Vercel supplies `VERCEL=1`; no custom `PORT` is needed.
 
 Before deploying the checkout rate limit, apply
@@ -42,10 +46,12 @@ unmerged workspace branch. Checkout requires this migration and the shared
 `SESSION_SECRET` to be present on every API instance.
 
 Before enabling checkout, run `pnpm --filter @workspace/scripts run seed:stripe-test`
-in the Replit workspace. It creates any missing Stripe products and real Prices
-from the current Supabase catalog, and fails safely if your Stripe test account
-does not support KWD. Only after the script succeeds, set
-`TAWWA_STRIPE_CATALOG_READY=true` in Vercel and redeploy.
+in a workspace with the same Stripe test account and Supabase catalog. It creates
+any missing USD Stripe Prices from the KWD catalog using the fixed rate above;
+the checkout shows both the KWD total and converted USD amount. If the rate
+changes, reseed the catalog and update the API project's rate variables together.
+Only after the script succeeds, set `TAWWA_STRIPE_CATALOG_READY=true` in Vercel
+and redeploy the API.
 
 The first checkout initializes Stripe's managed webhook and synced Stripe schema
 in Supabase. The route is `/api/stripe/webhook`; its signing secret is managed by

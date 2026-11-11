@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PaymentOrderChargeCurrency } from './paymentOrderChargeCurrency';
 import type { PaymentOrderCurrency } from './paymentOrderCurrency';
 import type { PaymentOrderItem } from './paymentOrderItem';
 import type { PaymentOrderStatus } from './paymentOrderStatus';
@@ -16,5 +17,7 @@ export interface PaymentOrder {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  chargeCurrency: PaymentOrderChargeCurrency;
+  chargeTotal: number;
   items: PaymentOrderItem[];
 }

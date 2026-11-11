@@ -14,6 +14,9 @@ const savedDate = new Intl.DateTimeFormat('en-KW', {
 }).format(new Date(`${saved.date}T00:00:00Z`));
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/payments/config', route => route.fulfill({
+    json: { deliveryFee: 0.5, currency: 'usd', kwdToChargeRate: 3.221725, kwdToChargeRateDate: '2026-11-11', testMode: true },
+  }));
   await page.addInitScript(item => {
     localStorage.setItem('tawwa-intro-seen', 'yes');
     if (localStorage.getItem('tawwa-cart') === null) {
@@ -58,6 +61,7 @@ test('a refresh during checkout blocks even form submission until the new total 
   await expect(page.getByTestId('cart-price-change-notice')).toHaveCount(0);
   await page.getByTestId('button-continue-checkout').click();
   await page.locator('#checkout-name').fill('Price Review Test');
+  await page.locator('#checkout-email').fill('price-review@example.test');
   await page.locator('#checkout-phone').fill('55555555');
   await page.locator('#checkout-area').selectOption({ index: 1 });
   await page.locator('#checkout-address').fill('Test block 2 street 3');
@@ -76,8 +80,19 @@ test('a refresh during checkout blocks even form submission until the new total 
   await expect(page.getByTestId('button-confirm-order')).toBeDisabled();
   await page.getByTestId('button-accept-prices').click();
   await expect(page.locator('#checkout-address')).toHaveValue('Test block 2 street 3');
+  await page.route('**/api/payments/checkout', route => route.fulfill({
+    json: {
+      checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_price_review',
+      orderId: '00000000-0000-4000-8000-000000000001',
+    },
+  }));
+  await page.route('https://checkout.stripe.com/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<title>Stripe test checkout</title>',
+  }));
   await page.getByTestId('button-confirm-order').click();
-  await expect(page.getByRole('heading', { name: 'Your gift is on its way.' })).toBeVisible();
+  await expect(page).toHaveURL(/checkout\.stripe\.com\/c\/pay\/cs_test_price_review/);
 });
 
 for (const acknowledgedPrice of [undefined, 'invalid', null, -10]) {

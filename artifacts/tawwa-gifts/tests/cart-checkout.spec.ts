@@ -8,6 +8,9 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('en-KW', {
 }).format(new Date(`${value}T00:00:00.000Z`));
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/payments/config', route => route.fulfill({
+    json: { deliveryFee: 0.5, currency: 'usd', kwdToChargeRate: 3.221725, kwdToChargeRateDate: '2026-11-11', testMode: true },
+  }));
   await page.addInitScript(() => {
     localStorage.setItem('tawwa-intro-seen', 'yes');
   });
@@ -66,4 +69,22 @@ test('gift messages and delivery dates stay with each box through reload and che
   }
   await expect(review.getByTestId('review-gift-little-wonder')).toContainText(gifts[0].message);
   await expect(review.getByTestId('review-gift-new-mom-moment')).toContainText(gifts[1].message);
+  await expect(page.getByTestId('checkout-charge-estimate')).toContainText('USD');
+});
+
+test('cart shows the exact USD test total alongside KWD prices', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('tawwa-cart', JSON.stringify([{
+      productId: 'little-wonder',
+      quantity: 1,
+      message: '',
+      date: '',
+      acknowledgedPrice: 18.5,
+    }]));
+  });
+  await page.goto('/cart');
+  const estimate = page.getByTestId('payment-charge-estimate');
+  await expect(estimate).toContainText('USD');
+  await expect(estimate).toContainText('61.21');
+  await expect(estimate).toContainText('3.221725');
 });

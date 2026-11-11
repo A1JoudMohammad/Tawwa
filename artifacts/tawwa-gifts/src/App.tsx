@@ -43,6 +43,18 @@ function trackOccasionEvent(name: OccasionAnalyticsEvent, occasionId: string) {
   }
 }
 const fmt = (amount: number) => `${amount.toFixed(3)} KWD`;
+const fmtCharge = (amount: number, currency: string, lang: 'en' | 'ar') => new Intl.NumberFormat(
+  lang === 'ar' ? 'ar-KW' : 'en-KW',
+  { style: 'currency', currency: currency.toUpperCase() },
+).format(amount);
+const fmtChargeRate = (amount: number, currency: string, lang: 'en' | 'ar') => new Intl.NumberFormat(
+  lang === 'ar' ? 'ar-KW' : 'en-KW',
+  { style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: 6 },
+).format(amount);
+const fmtRateDate = (date: string, lang: 'en' | 'ar') => new Intl.DateTimeFormat(
+  lang === 'ar' ? 'ar-KW' : 'en-KW',
+  { dateStyle: 'medium', timeZone: 'UTC' },
+).format(new Date(`${date}T00:00:00Z`));
 const t = (lang: 'en' | 'ar', en: string, ar: string) => lang === 'ar' ? ar : en;
 const paymentApiUrl = (path: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}api/${path}`;
 const formatDeliveryDate = (value: string | undefined, lang: 'en' | 'ar') => {
@@ -491,6 +503,9 @@ function Cart() {
   const [checkout, setCheckout] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
+  const [chargeCurrency, setChargeCurrency] = useState<string | null>(null);
+  const [kwdToChargeRate, setKwdToChargeRate] = useState<number | null>(null);
+  const [kwdToChargeRateDate, setKwdToChargeRateDate] = useState<string | null>(null);
   const [error, setError] = useState('');
   const checkoutAttempt = useRef<{ requestId: string; token: string; body: string } | null>(null);
   const checkoutReviewRef = useRef<HTMLElement>(null);
@@ -498,11 +513,27 @@ function Cart() {
     const controller = new AbortController();
     fetch(paymentApiUrl('payments/config'), { signal: controller.signal })
       .then(async response => {
-        const result = await response.json() as { deliveryFee?: number; currency?: string; testMode?: boolean; error?: string };
+        const result = await response.json() as {
+          deliveryFee?: number;
+          currency?: string;
+          kwdToChargeRate?: number;
+          kwdToChargeRateDate?: string;
+          testMode?: boolean;
+          error?: string;
+        };
         if (!response.ok) throw new Error(result.error || 'Checkout is not configured.');
-        const config = result as { deliveryFee: number; currency: string; testMode: boolean };
-        if (!Number.isFinite(config.deliveryFee) || config.currency !== 'kwd') throw new Error('Invalid payment configuration.');
-        setDeliveryFee(config.deliveryFee);
+        if (
+          !Number.isFinite(result.deliveryFee) ||
+          result.currency !== 'usd' ||
+          !Number.isFinite(result.kwdToChargeRate) ||
+          (result.kwdToChargeRate ?? 0) <= 0 ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(result.kwdToChargeRateDate ?? '') ||
+          result.testMode !== true
+        ) throw new Error('Invalid payment configuration.');
+        setDeliveryFee(result.deliveryFee!);
+        setChargeCurrency(result.currency);
+        setKwdToChargeRate(result.kwdToChargeRate!);
+        setKwdToChargeRateDate(result.kwdToChargeRateDate!);
       })
       .catch(() => { if (!controller.signal.aborted) setError(t(lang, 'Secure checkout is temporarily unavailable.', 'الدفع الآمن غير متاح مؤقتاً.')); });
     return () => controller.abort();
@@ -521,6 +552,14 @@ function Cart() {
   const reviewing = checkout && !hasUnavailable;
   const subtotal = Number(enriched.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0).toFixed(3));
   const total = Number((subtotal + (deliveryFee ?? 0)).toFixed(3));
+  const chargeTotal = chargeCurrency && kwdToChargeRate !== null && deliveryFee !== null
+    ? (
+      enriched.reduce((sum, item) => sum + (item.product
+        ? Math.round(item.product.price * kwdToChargeRate * 100) * item.quantity
+        : 0), 0) +
+      Math.round(deliveryFee * kwdToChargeRate * 100)
+    ) / 100
+    : null;
   const checkoutSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setError('');
     // Guard submission too: Enter or a programmatic submit cannot bypass review.
@@ -577,7 +616,7 @@ function Cart() {
     }
   };
   if (!enriched.length) return <main className="container"><div className="empty-state"><GiftMark className="brand-mark empty-state-mark" /><div className="eyebrow">{t(lang, 'YOUR CART', 'سلتك')}</div><h1 style={{ fontSize: 42 }}>{t(lang, 'A lovely gift goes here.', 'هديتك الجميلة تبدأ من هنا.')}</h1><p className="muted">{t(lang, 'Your cart is taking a little breather. Let’s find someone a lovely surprise.', 'سلتك فارغة الآن. لنجد مفاجأة جميلة لشخص تحبه.')}</p><Link className="button" href="/occasions">{t(lang, 'Browse the boxes', 'تصفح الهدايا')}</Link></div></main>;
-  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, reviewing ? 'A few details, then we’re off.' : 'Your thoughtful picks.', reviewing ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, reviewing ? 'Review your gift details, then pay securely with Stripe. Test mode is on: no real charges.' : 'Your cart is saved while you shop.', reviewing ? 'راجع تفاصيل الهدية ثم ادفع بأمان عبر Stripe. وضع الاختبار مفعّل، ولن يتم خصم مبالغ حقيقية.' : 'سلتك محفوظة أثناء التسوق.')} />
+  return <><PageIntro eyebrow={t(lang, 'THE GOOD PART', 'الجزء الجميل')} title={t(lang, reviewing ? 'A few details, then we’re off.' : 'Your thoughtful picks.', reviewing ? 'بعض التفاصيل، ثم ننطلق.' : 'اختياراتك الجميلة.')} description={t(lang, reviewing ? 'Review your gift details, then pay securely in USD with Stripe test mode. No real charges.' : 'Your cart is saved while you shop.', reviewing ? 'راجع تفاصيل الهدية ثم ادفع بأمان بالدولار عبر Stripe في وضع الاختبار. لن يتم خصم مبالغ حقيقية.' : 'سلتك محفوظة أثناء التسوق.')} />
   <main className="container section"><div className="checkout-grid"><section className="panel">
     {hasUnavailable && <p className="cart-unavailable-notice" role="alert" data-testid="cart-unavailable-notice">
       {t(lang, 'Some saved gifts are no longer available. Your messages and dates are still saved. Remove unavailable gifts before checkout; they are not included in the total.', 'بعض الهدايا المحفوظة لم تعد متاحة. رسائلك وتواريخك ما زالت محفوظة. أزل الهدايا غير المتاحة قبل إتمام الطلب؛ فهي غير مشمولة في الإجمالي.')}
@@ -627,7 +666,18 @@ function Cart() {
       </div>)}
       <div className="summary-line"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
       <div className="summary-line muted"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{deliveryFee === null ? t(lang, 'Loading…', 'جارٍ التحميل…') : fmt(deliveryFee)}</span></div>
-      <div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(total)}</span></div>
+      <div className="summary-line total" data-testid="cart-order-total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(total)}</span></div>
+      {chargeTotal !== null && chargeCurrency && kwdToChargeRate !== null && kwdToChargeRateDate && <div className="payment-charge-estimate" data-testid="payment-charge-estimate">
+        <div className="summary-line total">
+          <span>{t(lang, 'Sandbox charge in USD', 'مبلغ الدفع التجريبي بالدولار')}</span>
+          <span>{fmtCharge(chargeTotal, chargeCurrency, lang)}</span>
+        </div>
+        <p className="muted">{t(
+          lang,
+          `Rate snapshot ${fmtRateDate(kwdToChargeRateDate, lang)}: 1 KWD = ${fmtChargeRate(kwdToChargeRate, chargeCurrency, lang)}. Test mode only; no real charge.`,
+          `سعر التحويل بتاريخ ${fmtRateDate(kwdToChargeRateDate, lang)}: ١ د.ك = ${fmtChargeRate(kwdToChargeRate, chargeCurrency, lang)}. وضع اختبار فقط؛ لن يتم خصم مبلغ حقيقي.`,
+        )}</p>
+      </div>}
       {deliveryFee === null && <p className="cart-unavailable-notice" role="status">{error || t(lang, 'Checking secure checkout availability…', 'جارٍ التحقق من توفر الدفع الآمن…')}</p>}
       <button className="button" style={{ width: '100%', marginTop: 18 }} disabled={hasUnavailable || deliveryFee === null} onClick={() => { if (!hasUnavailable && deliveryFee !== null) setCheckout(true); }} data-testid="button-continue-checkout">
         {t(lang, 'Continue to secure checkout', 'تابع إلى الدفع الآمن')} <ArrowRight size={18} />
@@ -658,6 +708,17 @@ function Cart() {
         <div className="summary-line"><span>{t(lang, 'Subtotal', 'المجموع')}</span><span>{fmt(subtotal)}</span></div>
         <div className="summary-line"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{deliveryFee === null ? '—' : fmt(deliveryFee)}</span></div>
         <div className="summary-line total"><span>{t(lang, 'Total', 'الإجمالي')}</span><span>{fmt(total)}</span></div>
+        {chargeTotal !== null && chargeCurrency && kwdToChargeRate !== null && kwdToChargeRateDate && <div className="payment-charge-estimate" data-testid="checkout-charge-estimate">
+          <div className="summary-line total">
+            <span>{t(lang, 'Test amount charged in USD', 'مبلغ الدفع التجريبي بالدولار')}</span>
+            <span>{fmtCharge(chargeTotal, chargeCurrency, lang)}</span>
+          </div>
+          <p className="muted">{t(
+            lang,
+            `Rate snapshot ${fmtRateDate(kwdToChargeRateDate, lang)}: 1 KWD = ${fmtChargeRate(kwdToChargeRate, chargeCurrency, lang)}.`,
+            `سعر التحويل بتاريخ ${fmtRateDate(kwdToChargeRateDate, lang)}: ١ د.ك = ${fmtChargeRate(kwdToChargeRate, chargeCurrency, lang)}.`,
+          )}</p>
+        </div>}
         <button className="button" type="submit" disabled={needsPriceReview || submitting || deliveryFee === null} data-testid="button-confirm-order">{submitting ? t(lang, 'Opening secure checkout…', 'جارٍ فتح الدفع الآمن…') : t(lang, 'Pay securely with Stripe', 'ادفع بأمان عبر Stripe')} <Check size={18} /></button>
         <button className="remove" type="button" onClick={() => setCheckout(false)}>{t(lang, 'Back to cart', 'العودة للسلة')}</button>
         <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>{t(lang, 'Stripe test mode is on. No real charge will be made.', 'وضع اختبار Stripe مفعّل. لن يتم خصم أي مبلغ حقيقي.')}</p>
@@ -672,6 +733,8 @@ type PaymentOrderView = {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  chargeCurrency: 'usd';
+  chargeTotal: number;
   items: { productId: string; name: string; nameAr: string; quantity: number; unitPrice: number; message: string; date: string }[];
 };
 function CheckoutReturn() {
@@ -757,6 +820,7 @@ function CheckoutReturn() {
       </article>)}
       <div className="summary-line"><span>{t(lang, 'Delivery', 'التوصيل')}</span><span>{fmt(order.deliveryFee)}</span></div>
       <div className="summary-line total"><span>{t(lang, 'Order total', 'إجمالي الطلب')}</span><span>{fmt(order.total)}</span></div>
+      <div className="summary-line total"><span>{t(lang, 'Paid in USD', 'تم الدفع بالدولار')}</span><span>{fmtCharge(order.chargeTotal, order.chargeCurrency, lang)}</span></div>
     </section>}
     <Link className="button" href={paid ? '/' : '/cart'}>{t(lang, paid ? 'Back to Tawwa' : 'Return to cart', paid ? 'العودة إلى توّا' : 'العودة إلى السلة')}</Link>
   </main>;

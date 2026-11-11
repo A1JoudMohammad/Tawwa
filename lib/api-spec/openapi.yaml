@@ -279,10 +279,12 @@ components:
         total: { type: number }
     PaymentConfig:
       type: object
-      required: [deliveryFee, currency, testMode]
+      required: [deliveryFee, currency, kwdToChargeRate, kwdToChargeRateDate, testMode]
       properties:
         deliveryFee: { type: number, minimum: 0 }
-        currency: { type: string, enum: [kwd] }
+        currency: { type: string, enum: [usd] }
+        kwdToChargeRate: { type: number, exclusiveMinimum: 0 }
+        kwdToChargeRateDate: { type: string, format: date }
         testMode: { type: boolean }
     PaymentOrderLookupInput:
       type: object
@@ -303,7 +305,7 @@ components:
         date: { type: string }
     PaymentOrder:
       type: object
-      required: [orderId, status, currency, subtotal, deliveryFee, total, items]
+      required: [orderId, status, currency, subtotal, deliveryFee, total, chargeCurrency, chargeTotal, items]
       properties:
         orderId: { type: string, format: uuid }
         status: { type: string, enum: [pending, paid, failed, expired] }
@@ -311,6 +313,8 @@ components:
         subtotal: { type: number }
         deliveryFee: { type: number }
         total: { type: number }
+        chargeCurrency: { type: string, enum: [usd] }
+        chargeTotal: { type: number }
         items:
           type: array
           items: { $ref: "#/components/schemas/PaymentOrderItem" }

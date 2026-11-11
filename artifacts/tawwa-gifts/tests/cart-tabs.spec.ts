@@ -18,6 +18,9 @@ const expectPersonalization = async (page: Page) => {
 };
 
 test.beforeEach(async ({ context, page }) => {
+  await context.route('**/api/payments/config', route => route.fulfill({
+    json: { deliveryFee: 0.5, currency: 'usd', kwdToChargeRate: 3.221725, kwdToChargeRateDate: '2026-11-11', testMode: true },
+  }));
   await context.route('**/api/catalog', route => route.fulfill({
     json: { ...catalog, products: catalog.products.filter(p => p.id !== 'little-wonder') },
   }));
@@ -62,17 +65,59 @@ test('two tabs share removal and quantity edits without echo writes or losing pe
 });
 
 test('checkout clears both tabs and a later edit cannot revive the old cart', async ({ context, page }) => {
+  const orderId = '00000000-0000-4000-8000-000000000002';
+  const sessionId = 'cs_test_cart_tabs_session';
+  const product = catalog.products.find(item => item.id === 'new-mom-moment')!;
+  const chargeTotal = (
+    Math.round(product.price * 3.221725 * 100) +
+    Math.round(0.5 * 3.221725 * 100)
+  ) / 100;
+  await context.route('**/api/payments/checkout', route => route.fulfill({
+    json: {
+      checkoutUrl: `https://checkout.stripe.com/c/pay/${sessionId}`,
+      orderId,
+    },
+  }));
+  await context.route('https://checkout.stripe.com/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<title>Stripe test checkout</title>',
+  }));
+  await context.route('**/api/payments/order-status', route => route.fulfill({
+    json: {
+      orderId,
+      status: 'paid',
+      currency: 'kwd',
+      subtotal: product.price,
+      deliveryFee: 0.5,
+      total: product.price + 0.5,
+      chargeCurrency: 'usd',
+      chargeTotal,
+      items: [{
+        productId: product.id,
+        name: product.name,
+        nameAr: product.ar,
+        quantity: 1,
+        unitPrice: product.price,
+        message: gifts[1].message,
+        date: gifts[1].date,
+      }],
+    },
+  }));
   const other = await context.newPage();
   await other.goto('/cart');
   await page.getByTestId('button-cart-remove-little-wonder').click();
   await other.getByTestId('button-continue-checkout').click();
   await expect(other.getByTestId('checkout-gift-review')).toBeVisible();
   await page.getByTestId('button-continue-checkout').click();
+  await page.locator('#checkout-email').fill('shopper@example.test');
   await page.locator('#checkout-name').fill('Gift Shopper');
   await page.locator('#checkout-phone').fill('55512345');
   await page.locator('#checkout-area').selectOption({ index: 1 });
   await page.locator('#checkout-address').fill('Kuwait, Block 1, Street 2, House 3');
-  await page.getByRole('button', { name: 'Confirm demo order' }).click();
+  await page.getByTestId('button-confirm-order').click();
+  await expect(page).toHaveURL(new RegExp(`checkout\\.stripe\\.com/c/pay/${sessionId}`));
+  await page.goto(`/checkout/return?order_id=${orderId}&session_id=${sessionId}`);
   await expect(page.getByRole('heading', { name: 'Your gift is on its way.' })).toBeVisible();
   await expect(other.getByRole('heading', { name: 'A lovely gift goes here.' })).toBeVisible();
   expect(await other.evaluate(() => localStorage.getItem('tawwa-cart'))).toBeNull();

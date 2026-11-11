@@ -21,9 +21,29 @@ function toFils(value: number) {
   return fils;
 }
 
+function toChargeMinor(kwdFils: number, kwdToUsdRate: number) {
+  const amount = Math.round(kwdFils * kwdToUsdRate / 10);
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    throw new Error("Converted USD prices must be valid cent amounts.");
+  }
+  return amount;
+}
+
 let stage = "loading configuration";
 async function main() {
   const stripe = getStripeClient();
+  const chargeCurrency = required("TAWWA_STRIPE_CURRENCY");
+  const kwdToUsdRate = Number(required("TAWWA_KWD_TO_USD_RATE"));
+  const rateDate = required("TAWWA_KWD_TO_USD_RATE_DATE");
+  if (
+    chargeCurrency !== "usd" ||
+    !Number.isFinite(kwdToUsdRate) ||
+    kwdToUsdRate <= 0 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(rateDate) ||
+    Number.isNaN(Date.parse(`${rateDate}T00:00:00Z`))
+  ) {
+    throw new Error("Set a valid USD currency and KWD-to-USD conversion rate.");
+  }
   stage = "reading Supabase catalog";
   const supabaseUrl = required("SUPABASE_URL");
   const publishableKey = required("SUPABASE_PUBLISHABLE_KEY");
@@ -61,21 +81,28 @@ async function main() {
       });
     }
     const prices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
+    const chargeAmount = toChargeMinor(amount, kwdToUsdRate);
     const matchingPrice = prices.data.find((price) =>
-      price.currency === "kwd" && price.unit_amount === amount && price.type === "one_time");
+      price.currency === chargeCurrency && price.unit_amount === chargeAmount && price.type === "one_time");
     if (!matchingPrice) {
       stage = "creating Stripe test prices";
       await stripe.prices.create({
         product: product.id,
-        unit_amount: amount,
-        currency: "kwd",
-        metadata: { catalog_product_id: item.id },
-      }, { idempotencyKey: `tawwa-price-${item.id}-${amount}` });
+        unit_amount: chargeAmount,
+        currency: chargeCurrency,
+        metadata: {
+          catalog_product_id: item.id,
+          catalog_price_kwd_fils: String(amount),
+          kwd_to_usd_rate: String(kwdToUsdRate),
+          kwd_to_usd_rate_date: rateDate,
+        },
+      }, { idempotencyKey: `tawwa-price-${item.id}-${chargeCurrency}-${chargeAmount}` });
       createdPrices++;
     }
   }
 
   const deliveryFee = toFils(Number(required("TAWWA_DELIVERY_FEE_KWD")));
+  const deliveryChargeAmount = toChargeMinor(deliveryFee, kwdToUsdRate);
   stage = "syncing delivery price";
   if (deliveryFee > 0) {
     let delivery = products.find((candidate) => candidate.metadata.tawwa_delivery === "true");
@@ -87,17 +114,22 @@ async function main() {
       }, { idempotencyKey: "tawwa-product-delivery" });
     }
     const prices = await stripe.prices.list({ product: delivery.id, active: true, limit: 100 });
-    if (!prices.data.some((price) => price.currency === "kwd" && price.unit_amount === deliveryFee && price.type === "one_time")) {
+    if (!prices.data.some((price) => price.currency === chargeCurrency && price.unit_amount === deliveryChargeAmount && price.type === "one_time")) {
       await stripe.prices.create({
         product: delivery.id,
-        unit_amount: deliveryFee,
-        currency: "kwd",
-        metadata: { catalog_product_id: "delivery" },
-      }, { idempotencyKey: `tawwa-price-delivery-${deliveryFee}` });
+        unit_amount: deliveryChargeAmount,
+        currency: chargeCurrency,
+        metadata: {
+          catalog_product_id: "delivery",
+          catalog_price_kwd_fils: String(deliveryFee),
+          kwd_to_usd_rate: String(kwdToUsdRate),
+          kwd_to_usd_rate_date: rateDate,
+        },
+      }, { idempotencyKey: `tawwa-price-delivery-${chargeCurrency}-${deliveryChargeAmount}` });
       createdPrices++;
     }
   }
-  console.log(`Stripe test catalog ready: ${catalog.length} gifts, ${createdPrices} new prices.`);
+  console.log(`Stripe ${chargeCurrency.toUpperCase()} test catalog ready: ${catalog.length} gifts, ${createdPrices} new prices.`);
 }
 
 main().catch((caught: unknown) => {

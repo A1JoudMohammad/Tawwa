@@ -95,15 +95,17 @@ function accessTokenMatches(expectedHash: string, token: string) {
 async function getPrice(
   stripe: Stripe,
   input: { productId: string; amount: number },
+  config: ReturnType<typeof stripeConfiguration>,
 ) {
   const metadataKey = input.productId === "delivery" ? "tawwa_delivery" : "tawwa_product_id";
   const products = await stripe.products.list({ active: true, limit: 100 });
   let product = products.data.find((item) => item.metadata[metadataKey] === (input.productId === "delivery" ? "true" : input.productId));
   if (!product) throw new Error("Stripe gift prices are not prepared yet. Please try again shortly.");
   const prices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
+  const chargeAmount = Math.round(input.amount * config.kwdToChargeRate / 10);
   let price = prices.data.find((item) =>
-    item.currency === "kwd" &&
-    item.unit_amount === input.amount &&
+    item.currency === config.chargeCurrency &&
+    item.unit_amount === chargeAmount &&
     item.active &&
     item.type === "one_time"
   );
@@ -114,12 +116,18 @@ async function getPrice(
 router.get("/payments/config", (_req, res) => {
   try {
     if (process.env.TAWWA_STRIPE_CATALOG_READY !== "true") {
-      res.status(503).json({ error: "Stripe cannot accept KWD payments yet. Checkout is not enabled." });
+      res.status(503).json({ error: "Stripe test prices are not ready yet. Checkout is not enabled." });
       return;
     }
-    stripeConfiguration();
+    const config = stripeConfiguration();
     res.setHeader("Cache-Control", "no-store");
-    res.json({ deliveryFee: configuredDeliveryFee() / 1000, currency: "kwd", testMode: true });
+    res.json({
+      deliveryFee: configuredDeliveryFee() / 1000,
+      currency: config.chargeCurrency,
+      kwdToChargeRate: config.kwdToChargeRate,
+      kwdToChargeRateDate: config.kwdToChargeRateDate,
+      testMode: true,
+    });
   } catch {
     res.status(503).json({ error: "Payments are not configured." });
   }
@@ -187,25 +195,29 @@ router.post("/payments/checkout", async (req, res) => {
         quantity: item.quantity,
         unitPrice: product.price,
         unitAmount: minorUnits(product.price),
+        chargeUnitAmount: Math.round(minorUnits(product.price) * config.kwdToChargeRate / 10),
         message: item.message?.trim() ?? "",
         date: item.date?.toISOString().slice(0, 10) ?? "",
       };
     });
     const subtotalMinor = snapshot.reduce((sum, item) => sum + item.unitAmount * item.quantity, 0);
     const totalMinor = subtotalMinor + deliveryFeeMinor;
+    const chargeDeliveryMinor = Math.round(deliveryFeeMinor * config.kwdToChargeRate / 10);
+    const chargeSubtotalMinor = snapshot.reduce((sum, item) => sum + item.chargeUnitAmount * item.quantity, 0);
+    const chargeTotalMinor = chargeSubtotalMinor + chargeDeliveryMinor;
     const requestHash = hash(JSON.stringify({ ...input, items: snapshot }));
     const stripeRuntime = await getStripeRuntime();
     const productPrices = await Promise.all(snapshot.map((item) => getPrice(stripeRuntime.stripe, {
       productId: item.productId,
       amount: item.unitAmount,
-    })));
+    }, config)));
     const lineItems: import("stripe").default.Checkout.SessionCreateParams.LineItem[] =
       snapshot.map((item, index) => ({ price: productPrices[index].id, quantity: item.quantity }));
     if (deliveryFeeMinor > 0) {
       const delivery = await getPrice(stripeRuntime.stripe, {
         productId: "delivery",
         amount: deliveryFeeMinor,
-      });
+      }, config);
       lineItems.push({ price: delivery.id, quantity: 1 });
     }
 
@@ -229,12 +241,15 @@ router.post("/payments/checkout", async (req, res) => {
           governorate: input.governorate,
           address: input.address,
           recipient: input.recipient ?? "",
+          chargeCurrency: config.chargeCurrency,
+          chargeTotalMinor,
+          kwdToChargeRate: config.kwdToChargeRate,
         }),
       ],
     );
     const existing = await db.query(
       `SELECT id, request_hash, order_access_token_hash, status,
-              stripe_checkout_session_id, total_minor
+              stripe_checkout_session_id, total_minor, customer
        FROM public.tawwa_orders WHERE idempotency_key = $1`,
       [idempotencyKey],
     );
@@ -310,7 +325,7 @@ router.post("/payments/order-status", async (req, res) => {
     const db = orderDb();
     const result = await db.query(
       `SELECT id, order_access_token_hash, status, currency, subtotal_minor,
-              delivery_fee_minor, total_minor, items, stripe_checkout_session_id
+              delivery_fee_minor, total_minor, items, customer, stripe_checkout_session_id
        FROM public.tawwa_orders WHERE id = $1`,
       [parsed.data.orderId],
     );
@@ -325,9 +340,10 @@ router.post("/payments/order-status", async (req, res) => {
       return;
     }
     const session = await stripe.checkout.sessions.retrieve(parsed.data.sessionId);
+    const chargeDetails = order.customer as { chargeCurrency?: string; chargeTotalMinor?: number };
     if (session.metadata?.tawwa_order_id !== order.id ||
-        session.amount_total !== Number(order.total_minor) ||
-        session.currency !== "kwd") {
+        session.amount_total !== Number(chargeDetails.chargeTotalMinor) ||
+        session.currency !== chargeDetails.chargeCurrency) {
       res.status(404).json({ error: "Payment session not found." });
       return;
     }
@@ -354,6 +370,8 @@ router.post("/payments/order-status", async (req, res) => {
       subtotal: Number(order.subtotal_minor) / 1000,
       deliveryFee: Number(order.delivery_fee_minor) / 1000,
       total: Number(order.total_minor) / 1000,
+      chargeCurrency: chargeDetails.chargeCurrency,
+      chargeTotal: Number(chargeDetails.chargeTotalMinor) / 100,
       items: order.items,
     }));
   } catch (error) {
@@ -384,7 +402,8 @@ export async function processTawwaWebhook(payload: Buffer, signature: string) {
          stripe_payment_intent_id = COALESCE($4, stripe_payment_intent_id),
          paid_at = CASE WHEN $3 = 'paid' THEN COALESCE(paid_at, now()) ELSE paid_at END
      WHERE id = $1 AND stripe_checkout_session_id = $2
-       AND currency = $5 AND total_minor = $6`,
+        AND customer->>'chargeCurrency' = $5
+        AND (customer->>'chargeTotalMinor')::integer = $6`,
     [session.metadata.tawwa_order_id, session.id, status,
       typeof session.payment_intent === "string" ? session.payment_intent : null,
       session.currency, session.amount_total],

@@ -13,6 +13,9 @@ const availableProduct = catalog.products.find(product => product.id === savedGi
 const availableTotal = `${availableProduct.price.toFixed(3)} KWD`;
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/payments/config', route => route.fulfill({
+    json: { deliveryFee: 0.5, currency: 'usd', kwdToChargeRate: 3.221725, kwdToChargeRateDate: '2026-11-11', testMode: true },
+  }));
   await page.addInitScript(gifts => {
     localStorage.setItem('tawwa-intro-seen', 'yes');
     if (localStorage.getItem('tawwa-cart') === null) {
@@ -49,7 +52,7 @@ for (const duringCheckout of [false, true]) {
     await expect(row.getByTestId('text-delivery-date-little-wonder')).toHaveText(savedDate);
     await expect(page.getByTestId('button-continue-checkout')).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Confirm demo order' })).toHaveCount(0);
-    await expect(page.locator('.summary-line.total')).toHaveText([`Subtotal${availableTotal}`, `Order total${availableTotal}`]);
+    await expect(page.getByTestId('cart-order-total')).toHaveText(`Order total${availableTotal}`);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tawwa-cart') || '[]'))).toEqual(savedGifts);
 
     await page.reload();

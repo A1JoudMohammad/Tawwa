@@ -21,6 +21,7 @@ export * from './healthStatus';
 export * from './paymentConfig';
 export * from './paymentConfigCurrency';
 export * from './paymentOrder';
+export * from './paymentOrderChargeCurrency';
 export * from './paymentOrderCurrency';
 export * from './paymentOrderItem';
 export * from './paymentOrderLookupInput';

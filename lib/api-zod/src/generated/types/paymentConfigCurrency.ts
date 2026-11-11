@@ -10,5 +10,5 @@ export type PaymentConfigCurrency = typeof PaymentConfigCurrency[keyof typeof Pa
 
 
 export const PaymentConfigCurrency = {
-  kwd: 'kwd',
+  usd: 'usd',
 } as const;

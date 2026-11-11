@@ -13,6 +13,10 @@ test("checkout and order status reject missing and cross-site origins before tou
     TAWWA_API_URL: "https://api.example",
     STRIPE_SECRET_KEY: "sk_test_security_test_only",
     SUPABASE_DATABASE_URL: "postgresql://test:test@127.0.0.1:1/test",
+    TAWWA_STRIPE_CURRENCY: "usd",
+    TAWWA_KWD_TO_USD_RATE: "3.221725",
+    TAWWA_KWD_TO_USD_RATE_DATE: "2026-11-11",
+    TAWWA_DELIVERY_FEE_KWD: "0.500",
   };
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
     import assert from "node:assert/strict";
@@ -43,6 +47,20 @@ test("checkout and order status reject missing and cross-site origins before tou
       assert.equal(sameSiteInvalidBody.headers.get("set-cookie"), null, "failed checkout does not issue an order cookie");
       const checkoutConfig = await fetch(base + "/api/payments/config");
       assert.equal(checkoutConfig.status, 503, "checkout is disabled until the Stripe catalog is ready");
+      process.env.TAWWA_STRIPE_CURRENCY = "usd";
+      process.env.TAWWA_KWD_TO_USD_RATE = "3.221725";
+      process.env.TAWWA_KWD_TO_USD_RATE_DATE = "2026-11-11";
+      process.env.TAWWA_STRIPE_CATALOG_READY = "true";
+      const readyConfig = await fetch(base + "/api/payments/config");
+      assert.equal(readyConfig.status, 200);
+      assert.deepEqual(await readyConfig.json(), {
+        deliveryFee: 0.5,
+        currency: "usd",
+        kwdToChargeRate: 3.221725,
+        kwdToChargeRateDate: "2026-11-11",
+        testMode: true,
+      });
+      assert.equal(readyConfig.headers.get("cache-control"), "no-store");
     } finally {
       server.closeAllConnections();
       await new Promise(resolve => server.close(resolve));

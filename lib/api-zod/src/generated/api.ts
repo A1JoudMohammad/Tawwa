@@ -10,11 +10,15 @@ import * as zod from 'zod';
 
 export const getTawwaPaymentConfigResponseDeliveryFeeMin = 0;
 
+export const getTawwaPaymentConfigResponseKwdToChargeRateExclusiveMin = 0;
+
 
 
 export const GetTawwaPaymentConfigResponse = zod.object({
   "deliveryFee": zod.number().min(getTawwaPaymentConfigResponseDeliveryFeeMin),
-  "currency": zod.enum(['kwd']),
+  "currency": zod.enum(['usd']),
+  "kwdToChargeRate": zod.number().gt(getTawwaPaymentConfigResponseKwdToChargeRateExclusiveMin),
+  "kwdToChargeRateDate": zod.coerce.date(),
   "testMode": zod.boolean()
 })
 
@@ -101,6 +105,8 @@ export const GetTawwaPaymentOrderResponse = zod.object({
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
   "total": zod.number(),
+  "chargeCurrency": zod.enum(['usd']),
+  "chargeTotal": zod.number(),
   "items": zod.array(zod.object({
   "productId": zod.string(),
   "name": zod.string(),
