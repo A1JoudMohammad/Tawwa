@@ -3,3 +3,4 @@
 - [Customer sign-in scope](customer-sign-in-scope.md) — Customer email/password sessions stay separate from staff authorization and use existing accounts.
 - [Vercel Express detection](vercel-express-detection.md) — executable API bundles can still fail Vercel's literal framework-import check.
 - [Legacy cart price review](legacy-cart-price-review.md) — missing price history requires explicit review rather than inventing a previously accepted price.
+- [Stripe KWD availability](stripe-kwd-availability.md) — do not enable checkout until the Stripe account can create KWD prices or the user chooses another charge currency.
