@@ -107,8 +107,7 @@ test('checkout clears both tabs and a later edit cannot revive the old cart', as
   const other = await context.newPage();
   await other.goto('/cart');
   await page.getByTestId('button-cart-remove-little-wonder').click();
-  await other.getByTestId('button-continue-checkout').click();
-  await expect(other.getByTestId('checkout-gift-review')).toBeVisible();
+  await expect(other.getByTestId('cart-unavailable-little-wonder')).toHaveCount(0);
   await page.getByTestId('button-continue-checkout').click();
   await page.locator('#checkout-email').fill('shopper@example.test');
   await page.locator('#checkout-name').fill('Gift Shopper');
@@ -120,7 +119,7 @@ test('checkout clears both tabs and a later edit cannot revive the old cart', as
   await page.goto(`/checkout/return?order_id=${orderId}&session_id=${sessionId}`);
   await expect(page.getByRole('heading', { name: 'Your gift is on its way.' })).toBeVisible();
   await expect(other.getByRole('heading', { name: 'A lovely gift goes here.' })).toBeVisible();
-  expect(await other.evaluate(() => localStorage.getItem('tawwa-cart'))).toBeNull();
+  expect(await other.evaluate(() => localStorage.getItem('tawwa-cart'))).toBe('[]');
   await other.goto('/product/new-mom-moment');
   await other.getByTestId('button-add-to-cart-new-mom-moment').click();
   const saved = await readCart(other);

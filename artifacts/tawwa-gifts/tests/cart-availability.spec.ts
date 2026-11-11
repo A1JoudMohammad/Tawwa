@@ -52,7 +52,8 @@ for (const duringCheckout of [false, true]) {
     await expect(row.getByTestId('text-delivery-date-little-wonder')).toHaveText(savedDate);
     await expect(page.getByTestId('button-continue-checkout')).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Confirm demo order' })).toHaveCount(0);
-    await expect(page.getByTestId('cart-order-total')).toHaveText(`Order total${availableTotal}`);
+    const totalIncludingDelivery = availableTotal.replace(/(\d+(?:\.\d+)?) KWD$/, (_, amount) => `${(Number(amount) + 0.5).toFixed(3)} KWD`);
+    await expect(page.getByTestId('cart-order-total')).toHaveText(`Order total${totalIncludingDelivery}`);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tawwa-cart') || '[]'))).toEqual(savedGifts);
 
     await page.reload();
